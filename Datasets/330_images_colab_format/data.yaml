@@ -1,9 +1,10 @@
-train: /content/train/images
-val: /content/valid/images
-test: /content/test/images
+path: /content/drive/MyDrive/path/to/your/dataset  # Path to the root of your dataset
+train: images/train
+val: images/valid
+test: images/test
 
-nc: 6
-names: ['Downclimb', 'Hold', 'Macro', 'Unknown', 'Volume', 'start_tag']
+nc: 3
+names: ['Hold','Marker', 'Volume']
 
 roboflow:
   workspace: sams-workspace-23ppo
