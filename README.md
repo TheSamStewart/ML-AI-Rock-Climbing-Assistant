@@ -5,9 +5,9 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ### What I'm working on right now:  
 * Training the Computer Vision model to reach my success criteria:
-* Precision (M): >= 0.70
-* Recall (M): >= 0.70
-* mAP50-95 (M): >= 0.40
+  * Precision (M): >= 0.70
+  * Recall (M): >= 0.70
+  * mAP50-95 (M): >= 0.40
 
 ---
   
