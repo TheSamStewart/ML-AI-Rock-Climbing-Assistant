@@ -3,13 +3,11 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ---
 
-> [!WARNING]
-> **UNDER CONSTRUCTION:** This project is currently in active development. This README is a plan for version 1.0.
-
----
-
 ### What I'm working on right now:  
-* Currently scaling the dataset from an initial "Gold Standard" of 330 augmented images to a target of 800+ via model-assisted auto-labeling.
+* Training the Computer Vision model to reach my success criteria:
+* Precision (M): >= 0.70
+* Recall (M): >= 0.70
+* mAP50-95 (M): >= 0.40
 
 ---
   
