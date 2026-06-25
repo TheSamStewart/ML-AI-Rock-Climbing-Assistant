@@ -11,53 +11,23 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ---
   
-### Why am I doing this:
-* To gain experience integrating Computer Vision (YOLO) and LLMs.  
-* To gain experience with Mobile Development in Swift.
-* To consolidate experience using APIs to send and recieve data.
+### Learning Goals for this project:
+* **CI/CD Automation:** Establish continuous integration and testing pipelines using GitHub Actions.
+* **Cross-Platform UI & State Management:** Build the mobile client using React Native, focusing on asynchronous UI updates.
+* **Asynchronous REST API:** Design a stateless backend utilizing FastAPI to securely orchestrate network payloads and data validation.
+* **Distributed Task Queues:** Decouple heavy ML computation from the web server by implementing a Producer-Consumer architecture with Celery and Redis.
+* **Relational Data Persistence:** Manage system state and inference results using MariaDB.
+* **MLOps & Inference Deployment:** Train and deploy custom computer vision models behind a production-grade inference pipeline.
   
----
-
-# UNNAMED
-**A local-cloud hybrid system for rock climbing route analysis and beta generation.**
-
-This system allows users to photograph a climbing wall, select specific holds via a tap-to-select interface, and receive a generated movement sequence (beta) based on the geometry and orientation of the holds.
-
-## Architecture Overview
-
-### 1. Mobile Client (Swift)
-* **Capture:** High-resolution photo capture, automatically resized to 640x640 to match the YOLO26-seg input requirements.
-* **Interactive Layer:** A human-in-the-loop UI where users tap the holds they intend to use. 
-* **Normalization:** Screen taps are converted to normalized coordinates (0.0 to 1.0) before being sent to the server to ensure consistency across different device aspect ratios.
-
-### 2. API Layer (FastAPI)
-* **Endpoint:** `POST /analyze-route`
-* **Payload:** Multipart form data containing the .jpg image and a JSON array of user-tapped coordinates.
-* **Orchestration:** Manages the hand-off between the local CV model and the remote LLM API.
-
-### 3. Detection Engine (YOLO26-seg)
-
-* **Segmentation:** Reaplaces bounding boxes with polygons for pixel-perfect accuracy.
-* **Filtering:** Uses a Point-in-Polygon algorithm to match user taps to specific detected instances, filtering out "noise" (holds from adjacent routes).
-
-### 4. Reasoning Brain (LLM)
-* **Prompting:** Sends the processed image and the filtered hold coordinates to the LLM.
-* **Context:** The model analyzes the hold types (crimps, jugs, slopers) and their relative distances to generate an ergonomically sound climbing sequence.
-
-### 5. Output and Visualization
-* **Data Contract:** The server returns a JSON payload containing a step-by-step text sequence and pixel-coordinate markers for the app to render.
-* **Rendering:** Swift renders a visual overlay (numbered path) directly onto the user's original photo.
-
 ---
 
 ## Technical Stack
 
 | Component | Technology |
 | :--- | :--- |
-| **Mobile** | Swift (UIKit/SwiftUI) |
+| **Mobile** | React Native |
 | **Backend** | Python, FastAPI |
-| **CV Model** | YOLO26-seg |
-| **LLM API** | UNSPECIFIED |
-| **Tunneling** | ngrok |
-
----
+| **Task Queue(workers)** | Redis, Celery |
+| **Database** | MariaDB |
+| **CV Model** | YOLO26-seg trained on 2000+ images of bouldering-gym walls |
+| **LLM API** | UNSPECIFIED 
