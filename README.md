@@ -18,7 +18,12 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 * **Distributed Task Queues:** Decouple heavy ML computation from the web server by implementing a Producer-Consumer architecture with Celery and Redis.
 * **Relational Data Persistence:** Manage system state and inference results using MariaDB.
 * **MLOps & Inference Deployment:** Train and deploy custom computer vision models behind a production-grade inference pipeline.
-  
+
+---
+
+### Workflow Digram:
+![ML Rock Climbing App Workflow Diagram](https://raw.githubusercontent.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/refs/heads/main/ML-Rock-Climbing-App-Workflow-Diagram_2.svg)
+
 ---
 
 ## Technical Stack
