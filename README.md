@@ -21,8 +21,8 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ---
 
-### Workflow Digram:
-![ML Rock Climbing App Workflow Diagram](https://raw.githubusercontent.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/refs/heads/main/ML-Rock-Climbing-App-Workflow-Diagram_2.svg)
+### Workflow Diagram:
+![ML Rock Climbing App Workflow Diagram](https://raw.githubusercontent.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/refs/heads/main/ML-Rock-Climbing-App-Workflow-Diagram_3.svg)
 
 ---
 
