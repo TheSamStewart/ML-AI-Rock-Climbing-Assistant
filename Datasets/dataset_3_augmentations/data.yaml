@@ -1,0 +1,10 @@
+# YOLO26-seg dataset - merged originals from dataset_all + dataset_2
+path: C:/ML/dataset_3_augmentations
+train: images/train
+val: images/valid
+test: images/test
+
+nc: 2
+names:
+  0: HOLD
+  1: VOLUME
