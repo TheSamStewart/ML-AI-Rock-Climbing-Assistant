@@ -9,3 +9,18 @@
    git checkout -b feature/issue-1
    ```
 3. Complete the work
+
+4. Stage the commit and commit using:
+
+   ```bash
+   git add .
+   git commit -m "message"
+   ```
+
+5. Push to the local repo NOT MAIN
+
+   ```bash
+   git push origin feature/issue-1
+   ```
+
+6. Visit the URL and complete the PR
