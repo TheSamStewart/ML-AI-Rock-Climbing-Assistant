@@ -8,7 +8,7 @@ Asynchronus Design pattern was chosen as the 20s window between the applications
 
 ## Brief explanation of each part of the stack and why it was chosen.
 
-### React Native:
+### <ins>React Native:</ins>
 
 Explanation:
 
@@ -18,7 +18,7 @@ Why Chosen:
 
 React Native is one of the most popular and modern frameworks for mobile frontends in 2026. I have experience using JavaScript and React so this was a comfortable choice.
 
-### FastAPI RESTAPI:
+### <ins>FastAPI RESTAPI</ins>:
 
 Explanation:
 
@@ -52,7 +52,7 @@ FastAPI is also written in Python, a language I am comfortable with through DSA 
 
 The REST architecture supports our application's scalability by keeping all HTTP requests stateless. Because the API must immediately terminate the session with the client to avoid disconnections, we cannot rely on persistent server-side sessions. Instead, it is imperative that we track long-running operations statelessly by issuing a unique TASKID to the client, which they must provide in subsequent polling requests to retrieve the task's progress.
 
-### Redis
+### <ins>Redis</ins>
 
 Explanation:
 
@@ -62,7 +62,7 @@ Why Chosen:
 
 By acting as a message-broker (task-queue) Redis facilitates background task execution allowing our Celery workers to process thousands of tasks completely seperate from our API. Redis stores the result from our Celery worker and, due to it's in memory (RAM) key-value architecture allows our API to return the result to the front-end in miliseconds once work is complete.
 
-### Celery
+### <ins>Celery</ins>
 
 Explanation:
 
@@ -72,7 +72,7 @@ Why Chosen:
 
 Celery abstracts the complexity of the asynchronous processing system by handling task serialization, worker concurrency, and Redis queue management automatically in the background.
 
-### Yolo26-seg
+### <ins>Yolo26-seg</ins>
 
 Explanation:
 
@@ -84,4 +84,8 @@ For the eco-system that make custom-trained ML models achievable to people who a
 
 ## Image Storage
 
-This defines the image journey from user to worker. The image is uploaded via the API and then converted into Base64. The API will then call the Celery worker at which point Celery intercepts, serializes the data into JSON format and appends this to the end of a Redis List (automatically). The worker pulls the JSON object from the queue and completes the work on the image by converting it back to an image. Once the work is complete the worker returns the result which is saved in the Redis database with the tasks unique id (TASKID).
+This defines the image journey from user to worker. 
+
+1. The image is uploaded via the API and then converted into Base64. 
+2. The API will then call the Celery worker at which point Celery intercepts, serializes the data into JSON format and appends this to the end of a Redis List (automatically). The worker pulls the JSON object from the queue and completes the work on the image by converting it back to an image. 
+3. Once the work is complete the worker returns the result which is saved in the Redis database with the tasks unique id (TASKID).
