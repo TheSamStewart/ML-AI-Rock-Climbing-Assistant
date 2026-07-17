@@ -19,4 +19,5 @@ COPY . .
 
 EXPOSE 8000
 
+#This configures uvicorn to listen to all traffic, so that Docker can route traffic to it.
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
