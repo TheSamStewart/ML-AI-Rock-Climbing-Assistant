@@ -4,7 +4,7 @@ ctrl + k then v to preview in vs code
 
 ## Why Async Design
 
-Asynchronus Design pattern was chosen as the 20s window between the applications request and the backend's reply can exceed 20s. Keeping a synchronous HTTP connection open for this duration risks connection timeouts and client-side disconnections. Instead the application will issue a POST to initiate the task. The API will then issue a 202 accepted and return a TASKID to the application. The Application will then perform polling via GET requests to a status endpoint until the job is complete.
+Asynchronus Design pattern was chosen as the window between the applications request and the backend's reply can exceed 20s. Keeping a synchronous HTTP connection open for this duration risks connection timeouts and client-side disconnections. Instead the application will issue a POST to initiate the task. The API will then issue a 202 accepted and return a TASKID to the application. The Application will then perform polling via GET requests to a status endpoint until the job is complete.
 
 ## Brief explanation of each part of the stack and why it was chosen.
 
@@ -84,8 +84,8 @@ For the eco-system that make custom-trained ML models achievable to people who a
 
 ## Image Storage
 
-This defines the image journey from user to worker. 
+This defines the image journey from user to worker.
 
-1. The image is uploaded via the API and then converted into Base64. 
-2. The API will then call the Celery worker at which point Celery intercepts, serializes the data into JSON format and appends this to the end of a Redis List (automatically). The worker pulls the JSON object from the queue and completes the work on the image by converting it back to an image. 
+1. The image is uploaded via the API and then converted into Base64.
+2. The API will then call the Celery worker at which point Celery intercepts, serializes the data into JSON format and appends this to the end of a Redis List (automatically). The worker pulls the JSON object from the queue and completes the work on the image by converting it back to an image.
 3. Once the work is complete the worker returns the result which is saved in the Redis database with the tasks unique id (TASKID).
