@@ -1,5 +1,7 @@
 import { StyleSheet, View, Text} from 'react-native';
 
+
+//default keyword here tells the expo router "This is the main content that needs to be rendered on this page" each page must have one default function
 export default function Index(){
     return (
         <View style = {styles.container}>

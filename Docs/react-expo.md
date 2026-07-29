@@ -43,3 +43,11 @@
 ## What is Metro
 
 - Metro is responosible for watching the /app directory and telling Expo to update the **routing graph**. If any changes occur, Expo uses this information to map actual filenames to their reference in the routing graph. If we want to send the user to a different part of the application using router.push('/path'), expo uses the routing graph to tell Metro to render this page.
+
+## export defauly function
+
+- The default keyword here tells the expo router that this is the main content that needs to be displayed on this page, each page needs a default function or error.
+
+## React-Native-Expo-Camera
+
+- The photo.uri points to the location of the image inside local cache storage.
