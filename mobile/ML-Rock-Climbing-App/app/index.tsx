@@ -1,24 +1,87 @@
-import { StyleSheet, View, Text} from 'react-native';
-
+import {View , StyleSheet, Text, Button, Linking, Image} from 'react-native'
+import { useCameraPermissions } from 'expo-camera'
+import { CustomCamera } from '@/components/CustomCamera'
+import { useState } from 'react';
 
 //default keyword here tells the expo router "This is the main content that needs to be rendered on this page" each page must have one default function
 export default function Index(){
-    return (
-        <View style = {styles.container}>
-            <Text style = {styles.title}>Danielle is a cheeky chicken</Text>
-        </View>
+
+    //Photo uri state to render image, passed down to camera component
+
+    const [uri, setUri] = useState<string | null>(null);
+
+    //Camera Permission and Rendering 
+
+    const [permission, requestPermission] = useCameraPermissions()
+
+    //Camera permissions are loading
+
+    if (!permission) {
+        return(
+            <View style = {styles.container}>
+                <Text>Camera permissions are loading</Text>
+            </View>
+        )            
+    }
+
+    //Permissions are not granted yet
+
+     if (!permission.granted) {
+        
+        //Check if we can prompt the user for permissions again, if turned off in settings simple button wont work
+
+        const canPrompt = permission.canAskAgain
+
+        //If we can prompt the user again, we prompt with button - Otherwise we send the user to settings
+
+      return (
+      <View style={styles.container}>
+        <Text style={{textAlign: "center"}}>
+          {canPrompt 
+            ? "We need your permission to use the camera"
+            : "Camera permission is turned off. Please enable in settings"}
+        </Text>
+        {canPrompt 
+            ? (<Button onPress={requestPermission} title="Grant Permission" />) 
+            : (
+                <Button 
+                    onPress={() => Linking.openSettings()} 
+                    title="Open Device Settings" 
+                /> 
+            )}
+      </View>
     );
+  }
+
+    //if no image taken yet, uri will be null and RN will render this
+
+    if(!uri){
+        return (
+        <View style = {styles.container}>
+            <CustomCamera onCapture = {setUri}/>
+        </View>
+    )}
+
+    //If we have a photo render it, retake button sets the uri back to null
+
+    return (
+        <View style={styles.container}>
+            <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+            <Button onPress={() => setUri(null)} title="Retake" />
+        </View>
+    ) 
+    
 }
 
+//Styles
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center' 
-    },
-    title: {
-        fontWeight: 'bold',
-        fontSize: 18
-    }
+message: {
+    textAlign: 'center',
+    paddingBottom: 10,
+},
+container: {
+    flex: 1,
+    justifyContent: 'center',
+},
 })

@@ -51,3 +51,13 @@
 ## React-Native-Expo-Camera
 
 - The photo.uri points to the location of the image inside local cache storage.
+
+## Bundle Identifier
+
+- This is used by app store/android store to uniquely identify the app.
+
+## ref vs state
+
+- ref is a reference to a piece of memory outside, that can be accessed at any point in any render meaning any changes due to this will be applied until the component is unmounted
+- state is per render setX doesnt change the current value, it schedules a new render where x is created.
+- if changing it should change what's on screen, it's state; if it shouldn't, it's a ref
