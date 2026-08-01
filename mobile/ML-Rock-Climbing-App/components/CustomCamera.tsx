@@ -36,6 +36,7 @@ export function CustomCamera ({onCapture} : CustomCameraProps) {
     //Camera states
 
     const [facing, setFacing] = useState<CameraType>('back')
+
     const [busy, setBusy] = useState(false)
     
 
