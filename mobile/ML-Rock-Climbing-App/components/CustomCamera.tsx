@@ -78,7 +78,7 @@ export function CustomCamera ({onCapture} : CustomCameraProps) {
     return (
         <View style = {styles.container}>
             <CameraView ref = {cameraRef} style = {styles.camera} facing = {facing}/>
-            <View style = {[styles.flipButtonContainer, { top: insets.top }]}>
+            <View style = {[styles.flipButtonContainer]}>
                 <TouchableOpacity onPress = {toggleFacing}>
                     <Image style = {styles.icon} source = {require('../assets/images/flipoutline_110902.png')}></Image>
                 </TouchableOpacity>
@@ -93,18 +93,17 @@ export function CustomCamera ({onCapture} : CustomCameraProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
   },
   camera: {
     flex: 1,
   },
   flipButtonContainer: {
-    position: 'absolute',
-    justifyContent: 'flex-end',
-    flexDirection: 'row',
-    backgroundColor: 'Transparent',
-    width: '100%',
-  },
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+},
   shutterContainer: {
     position: 'absolute',
     left: 0,

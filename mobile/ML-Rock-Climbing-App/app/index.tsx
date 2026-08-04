@@ -2,6 +2,7 @@ import {View , StyleSheet, Text, Button, Linking, Image} from 'react-native'
 import { useCameraPermissions } from 'expo-camera'
 import { CustomCamera } from '@/components/CustomCamera'
 import { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 //default keyword here tells the expo router "This is the main content that needs to be rendered on this page" each page must have one default function
 export default function Index(){
@@ -65,9 +66,13 @@ export default function Index(){
     //If we have a photo render it, retake button sets the uri back to null
 
     return (
-        <View style={styles.container}>
+        <View style={styles.previewContainer}>
             <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
-            <Button onPress={() => setUri(null)} title="Retake" />
+            <SafeAreaView edges={['bottom']} style = {styles.previewActions}>
+                <Button onPress={() => setUri(null)} title="Retake" />
+                <Button title = 'Submit'/>
+            </SafeAreaView>
+            
         </View>
     ) 
     
@@ -76,12 +81,24 @@ export default function Index(){
 //Styles
 
 const styles = StyleSheet.create({
+previewContainer: {
+    flex : 1,
+    justifyContent : 'flex-end'
+},
+preview : {
+    flex : 1
+},
+previewActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'baseline',
+    paddingVertical: 12,
+},
 message: {
     textAlign: 'center',
     paddingBottom: 10,
 },
 container: {
     flex: 1,
-    justifyContent: 'center',
 },
 })
