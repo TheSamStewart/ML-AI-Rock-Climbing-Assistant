@@ -5,7 +5,7 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ### What I'm working on right now:  
 * Building snapchat style front-end in React Native
-* Planning/slowly implementing backend infrastructure
+* Implementing API endpoints and async task queue with Redis/Celery.
 
 ---
   
@@ -19,11 +19,6 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 
 ---
 
-### Workflow Diagram:
-![ML Rock Climbing App Workflow Diagram](https://raw.githubusercontent.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/refs/heads/main/ML-Rock-Climbing-App-Workflow-Diagram_3.svg)
-
----
-
 ## Technical Stack
 
 | Component | Technology |
@@ -33,4 +28,3 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 | **Task Queue(workers)** | Redis, Celery |
 | **Database** | MariaDB |
 | **CV Model** | YOLO26-seg trained on 2000+ images of bouldering-gym walls |
-| **LLM API** | UNSPECIFIED 
