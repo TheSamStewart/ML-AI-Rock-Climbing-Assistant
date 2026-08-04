@@ -43,7 +43,7 @@ export function CustomCamera ({onCapture} : CustomCameraProps) {
     //Toggles the camera from front to back 
 
     function toggleFacing(){
-        setFacing(current => (current === 'back' ? 'front' : 'back' ))
+        setFacing((current: CameraType) => (current === 'back' ? 'front' : 'back' ))
     }
 
     //Takes picture when shutter button is pressed
