@@ -1,0 +1,9 @@
+import { useMutation } from '@tanstack/react-query'
+import { climbAnalysis } from '@/api/climbAnalysis'
+
+//useMutation does not retry in the background or need to be cached, better for POST instead of useQuery
+//useQuery will be used for the GET polling request
+
+export function useClimbAnalysis() {
+  return useMutation({ mutationFn: climbAnalysis })
+}

@@ -61,3 +61,15 @@
 - ref is a reference to a piece of memory outside, that can be accessed at any point in any render meaning any changes due to this will be applied until the component is unmounted
 - state is per render setX doesnt change the current value, it schedules a new render where x is created.
 - if changing it should change what's on screen, it's state; if it shouldn't, it's a ref
+
+## Async functions and promises
+
+- An async function uses promises to tell the program, "this data isnt ready yet but here is a promise that represents it arriving". This allows the program to continue on, only freezing the current function.
+
+1. Call the asyn function - it returns a promise immediately as a placeholder
+2. The work happens elsewhere while the program is free to run
+3. Await pauses ony the current function
+4. When the work finished the promise is returned as furfilled or rejected, then the function unpauses.
+    
+
+
