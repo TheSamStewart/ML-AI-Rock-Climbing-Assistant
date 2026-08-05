@@ -25,7 +25,7 @@
         }
       ],
       [
-        "expo-camera", 
+        "expo-camera",
         {
           "cameraPermission": "ClimbGoat uses your camera to photograph routes and problems.",
           "recordAudioAndroid": false

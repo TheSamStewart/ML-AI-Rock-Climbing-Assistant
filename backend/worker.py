@@ -8,5 +8,8 @@ redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 app = Celery("Tasks", broker=redis_url, backend=redis_url)
 
 @app.task
-def add(x, y):
-    return x + y
+def analysis(filename, content_type):
+
+    res = filename + content_type
+
+    return res

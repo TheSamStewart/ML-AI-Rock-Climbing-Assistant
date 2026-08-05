@@ -37,6 +37,26 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    
+  frontend:
+    build: ./mobile/ML-Rock-Climbing-App
+    restart: unless-stopped
+    command: npx expo start --host lan
+    ports:
+      - "8081:8081"
+    environment:
+      # Metro auto-detects the LAN IP to advertise to devices, but inside this
+      # container the only interface it sees is Docker's internal bridge IP,
+      # not your Windows machine's real Wi-Fi/Ethernet address. That wrong IP
+      # ends up in Constants.expoConfig.hostUri and breaks every API call from
+      # a physical phone. This overrides the auto-detection with the real one.
+      # Update this if you switch networks or your machine's IP changes.
+      REACT_NATIVE_PACKAGER_HOSTNAME: "192.168.1.71"
+    volumes:
+      - ./mobile/ML-Rock-Climbing-App:/app
+      - /app/node_modules
+    depends_on:
+      - api
 
 volumes:
   redis-data:
