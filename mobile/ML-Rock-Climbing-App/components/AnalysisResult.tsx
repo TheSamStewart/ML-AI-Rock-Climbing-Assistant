@@ -1,4 +1,5 @@
 import { useGetClimbAnalysis } from '@/hooks/useGetClimbAnalysis'
+import { useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 
 type AnalysisResultProps = {
@@ -7,7 +8,11 @@ type AnalysisResultProps = {
 
 export function AnalysisResult({ task_id }: AnalysisResultProps) {
   
-  const {data, isPending, isError, error} = useGetClimbAnalysis(task_id)
+  //When this components is rendered useGetClimbAnalysis hook is called automaticlly
+  //queryKey in useGetClimbAnalysis stops new call being made every time this page re renders, only when task_id is different it makes new calls
+
+  const {data, isPending, isError, error, timedOut} = useGetClimbAnalysis(task_id)
+  
 
 
   let content
@@ -17,7 +22,10 @@ export function AnalysisResult({ task_id }: AnalysisResultProps) {
     content = <Text>{error.message}</Text>
   } else if (data.status === 'FAILURE') {
     content = <Text>{data.error}</Text>
-  } else if (data.status !== 'SUCCESS') {
+  } else if (timedOut && data.status !== 'SUCCESS') {
+    content = <Text>This is taking longer than expected. Please try again later.</Text>
+  }
+  else if (data.status !== 'SUCCESS') {
     content = <Text>Analysing...</Text>
   } else {
     content = <Text>{data.result}</Text>

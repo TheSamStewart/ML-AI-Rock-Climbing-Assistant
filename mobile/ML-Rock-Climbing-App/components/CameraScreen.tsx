@@ -17,9 +17,7 @@ export function CameraScreen() {
   return (
     <CameraPermissionGate>
       {!uri ? (
-        <View style={styles.container}>
           <CustomCamera onCapture={setUri} />
-        </View>
       ) : !task_id ? (
         <PhotoPreview
           uri={uri}
@@ -33,10 +31,3 @@ export function CameraScreen() {
   )
 }
 
-//Styles
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-})

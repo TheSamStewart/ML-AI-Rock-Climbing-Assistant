@@ -12,6 +12,7 @@ type PhotoPreviewProps = {
 }
 
 export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) {
+  
   //Climb analysis submission - mutate() triggers the POST, state drives the UI
 
   const { mutate, isPending, isError, error } = useClimbAnalysis()

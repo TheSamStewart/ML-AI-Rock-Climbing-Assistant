@@ -10,6 +10,7 @@ type CustomCameraProps = {
 }
 
 export function CustomCamera({ onCapture }: CustomCameraProps) {
+  
   //Shutter size calculations
 
   const { width } = useWindowDimensions()
