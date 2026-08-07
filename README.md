@@ -1,11 +1,11 @@
 # ML-AI-Rock-Climbing-Assistant
-AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to map routes and suggest movement sequences from a single photo.
+AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to map routes and suggest movement sequences from a single photo, provided to the user in a mobile application.
 
 ---
 
 ### What I'm working on right now:  
-* Building snapchat style front-end in React Native
-* Implementing API endpoints and async task queue with Redis/Celery.
+* Building Human-In-The-Loop system in frontend which allows user to tap on the climbing holds that are part of route they want to analyse.
+* Implementing ML predictions in backend to be sent to LLM to provide human-like analysis.
 
 ---
   
@@ -15,7 +15,7 @@ AI-powered beta generator for rock climbers. Uses YOLO26 and LLM reasoning to ma
 * **Asynchronous REST API:** Design a stateless backend utilizing FastAPI to securely orchestrate network payloads and data validation.
 * **Distributed Task Queues:** Decouple heavy ML computation from the web server by implementing a Producer-Consumer architecture with Celery and Redis.
 * **Relational Data Persistence:** Manage system state and inference results using MariaDB.
-* **MLOps & Inference Deployment:** Train and deploy custom computer vision models behind a production-grade inference pipeline.
+* **MLOps** Train and deploy custom computer vision models behind a production-grade inference pipeline.
 
 ---
 
