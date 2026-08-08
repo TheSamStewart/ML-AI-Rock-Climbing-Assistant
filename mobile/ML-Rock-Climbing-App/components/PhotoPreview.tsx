@@ -27,9 +27,7 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
         <Button onPress={onRetake} title="Retake" />
         <Button
           onPress={() =>
-            //A fresh idempotency key per press - one key per submission attempt.
-            //If retries ever get enabled on this mutation, react-query re-invokes
-            //mutationFn with these same variables, so retries reuse this key too.
+            //A fresh idempotency key per press
             mutate(
               { uri, idempotencyKey: Crypto.randomUUID() },
               { onSuccess: (data) => onSubmitted(data.task_id) },

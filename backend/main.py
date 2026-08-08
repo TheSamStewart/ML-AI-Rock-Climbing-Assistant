@@ -22,6 +22,7 @@ IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24  # 24h
 
 @app.post("/analysis", status_code=status.HTTP_202_ACCEPTED)
 async def analysis(
+    #Reponse here allows to access metadata, specifically here change status code.
     response: Response,
     photo: UploadFile = File(),
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
