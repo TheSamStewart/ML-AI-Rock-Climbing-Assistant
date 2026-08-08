@@ -1,5 +1,6 @@
 import { View, StyleSheet, Text, Button, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as Crypto from 'expo-crypto'
 import { useClimbAnalysis } from '@/hooks/useClimbAnalysis'
 
 //Handles the captured photo only - preview, retake, and submission to analysis.
@@ -25,7 +26,15 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
       <SafeAreaView edges={['bottom']} style={styles.previewActions}>
         <Button onPress={onRetake} title="Retake" />
         <Button
-          onPress={() => mutate(uri, { onSuccess: (data) => onSubmitted(data.task_id) })}
+          onPress={() =>
+            //A fresh idempotency key per press - one key per submission attempt.
+            //If retries ever get enabled on this mutation, react-query re-invokes
+            //mutationFn with these same variables, so retries reuse this key too.
+            mutate(
+              { uri, idempotencyKey: Crypto.randomUUID() },
+              { onSuccess: (data) => onSubmitted(data.task_id) },
+            )
+          }
           title={isPending ? 'Submitting…' : 'Submit'}
           disabled={isPending}
         />
