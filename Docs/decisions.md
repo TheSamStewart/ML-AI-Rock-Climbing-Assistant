@@ -86,10 +86,10 @@ For the eco-system that make custom-trained ML models achievable to people who a
 
 This defines the image journey from user to worker.
 
-1. The image is uploaded via the API and then converted into Base64.
-2. The API will then call the Celery worker at which point Celery intercepts, serializes the data into JSON format and appends this to the end of a Redis List (automatically). The worker pulls the JSON object from the queue and completes the work on the image by converting it back to an image.
-3. Once the work is complete the worker returns the result which is saved in the Redis database with the tasks unique id (TASKID).
-
+1. The frontend will make a POST request in which it will recieve information on where to store the image (URL or something).
+2. Frontend will store image at this place.
+3. Worker script and frontend are free to access this image as needed.
+4. 
 ## Why expo 54.0.0
 
 - Expo go on app store does not support the latest versions of Expo unless using paid Apple Developer program.

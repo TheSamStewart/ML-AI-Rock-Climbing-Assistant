@@ -1,24 +1,58 @@
-from fastapi import FastAPI, File, UploadFile, status
+from fastapi import FastAPI, File, Header, Response, UploadFile, status
 from worker import app as celery_app, analysis as analysis_task
 from celery.result import AsyncResult
+from redis_client import redis_client
 
 app = FastAPI()
+
+
+#Idempotency: client sends a unique Idempotency-Key header per submission attempt.
+#We reserve it in redis (SET NX) before doing any work, so two
+#requests with the same key can't both create tasks.
+
+#keys are scoped globally, not per-user - there's no auth system yet.
+#Once one exists, prefix the redis key with the user id to scope it per-user.
+
+IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24  # 24h
 
 #When we receive the HTTP request with the image bytes, filename, content type
 #We get all the information and pass it to the worker function
 #Then we return 202 accepted and the taskid for the polling GET requests
 
-#Next we need to deal with the 202 reply in the frontend
-#Then we need to implement app.get here for the polling request once the work is done 
 
 @app.post("/analysis", status_code=status.HTTP_202_ACCEPTED)
-async def analysis(photo : UploadFile = File()):
+async def analysis(
+    response: Response,
+    photo: UploadFile = File(),
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
+):
+    redis_key = f"idempotency:{idempotency_key}"
 
-    contents: bytes = await photo.read()
-    filename = photo.filename
-    content_type = photo.content_type
+    reserved = await redis_client.set(
+        redis_key, "processing", nx=True, ex=IDEMPOTENCY_TTL_SECONDS
+    )
 
-    task = analysis_task.delay(filename, content_type)
+    if not reserved:
+        existing = await redis_client.get(redis_key)
+        if existing == "processing":
+            #Another request with this key is still being processed
+            response.status_code = status.HTTP_409_CONFLICT
+            return {"detail": "Request with this Idempotency-Key is already being processed"}
+        #Key already holds a completed task_id - replay the original response
+        return {"task_id": existing}
+
+    try:
+        contents: bytes = await photo.read()
+        filename = photo.filename
+        content_type = photo.content_type
+
+        task = analysis_task.delay(filename, content_type)
+    except Exception:
+        #Don't leave a failed attempt stuck as "processing" for the full TTL
+        await redis_client.delete(redis_key)
+        raise
+
+    await redis_client.set(redis_key, task.id, ex=IDEMPOTENCY_TTL_SECONDS)
 
     return {"task_id" : task.id}
 

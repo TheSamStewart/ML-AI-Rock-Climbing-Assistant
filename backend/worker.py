@@ -10,8 +10,6 @@ app = Celery("Tasks", broker=redis_url, backend=redis_url)
 @app.task
 def analysis(filename : str, content_type : str):
 
-    time.sleep(10)
-
     res = filename + content_type
 
     return res
