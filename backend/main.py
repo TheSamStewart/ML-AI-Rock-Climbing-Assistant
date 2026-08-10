@@ -13,12 +13,13 @@ app = FastAPI()
 #keys are scoped globally, not per-user - there's no auth system yet.
 #Once one exists, prefix the redis key with the user id to scope it per-user.
 
-IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24  # 24h
+
 
 #When we receive the HTTP request with the image bytes, filename, content type
 #We get all the information and pass it to the worker function
 #Then we return 202 accepted and the taskid for the polling GET requests
 
+IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24  # 24h
 
 @app.post("/analysis", status_code=status.HTTP_202_ACCEPTED)
 async def analysis(
