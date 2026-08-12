@@ -14,7 +14,6 @@ app = FastAPI()
 #Once one exists, prefix the redis key with the user id to scope it per-user.
 
 
-
 #When we receive the HTTP request with the image bytes, filename, content type
 #We get all the information and pass it to the worker function
 #Then we return 202 accepted and the taskid for the polling GET requests

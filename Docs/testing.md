@@ -1,5 +1,6 @@
 # Plan for learning TDD
 
-## Before applying TDD to backend only, research how to test specifically for this project and apply to one gh issue
+## test_main.py
 
-- Will write tests using pytest before implementation for issue #4
+- To create fake versions of celery and redis, we use patch() to override the calls made to the real redis/celery in our test API client.
+- To create a fake return for our celery task, we use mock_task.return_value.id to set the return value of the task
