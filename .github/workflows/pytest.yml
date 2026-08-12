@@ -23,7 +23,9 @@ jobs:
           python-version: '3.14' 
 
       - name: Install dependencies
+        working-directory: backend
         run: uv sync --all-extras --dev
 
       - name: Run Pytest
+        working-directory: backend
         run: uv run pytest
