@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { AnalysisResult } from './AnalysisResult'
-import { CustomCamera } from '@/components/CustomCamera'
+import { CustomCamera } from './CustomCamera'
 import { CameraPermissionGate } from '@/components/CameraPermissionGate'
 import { PhotoPreview } from '@/components/PhotoPreview'
 import { useState } from 'react'
