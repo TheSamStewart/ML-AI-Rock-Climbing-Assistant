@@ -17,7 +17,7 @@ export function CameraScreen() {
   return (
     <CameraPermissionGate>
       {!uri ? (
-          <CustomCamera onCapture={setUri} />
+        <CustomCamera onCapture={setUri} />
       ) : !task_id ? (
         <PhotoPreview
           uri={uri}
@@ -30,4 +30,3 @@ export function CameraScreen() {
     </CameraPermissionGate>
   )
 }
-

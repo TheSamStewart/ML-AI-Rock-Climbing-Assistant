@@ -2,6 +2,7 @@ import { CameraView, CameraType } from 'expo-camera'
 import { StyleSheet, View, TouchableOpacity, Image, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useRef, useState } from 'react'
+import { ImageManipulator, FlipType, SaveFormat } from 'expo-image-manipulator'
 
 //Typing for props
 
@@ -10,7 +11,6 @@ type CustomCameraProps = {
 }
 
 export function CustomCamera({ onCapture }: CustomCameraProps) {
-  
   //Shutter size calculations
 
   const { width } = useWindowDimensions()
@@ -47,26 +47,51 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
   //Takes picture when shutter button is pressed
 
-  const takePicture = async () => {
-    //if camera is busy we return
+const takePicture = async () => {
 
-    if (isCapturing.current) return
+  //check isCapturing flag for duplicate button presses
 
-    //else we set the camera to busy and deal with the photo
+  if (isCapturing.current) return
 
-    isCapturing.current = true
-    setBusy(true)
+  isCapturing.current = true
+  setBusy(true)
 
-    try {
-      const photo = await cameraRef.current?.takePictureAsync()
-      if (photo?.uri) onCapture(photo.uri)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      isCapturing.current = false
-      setBusy(false)
+  //Take image
+
+  try {
+
+    const photo = await cameraRef.current?.takePictureAsync()
+    if (!photo?.uri) return
+
+    let finalUri = photo.uri
+
+    // Only front camera needs correction for the use case
+
+    if (facing === 'front') {
+
+      //Loads uri into manipulation context so we can chain operations
+
+      const context = ImageManipulator.manipulate(photo.uri)
+
+      //Flip the image
+
+      const rendered = await context.flip(FlipType.Horizontal).renderAsync()
+  
+      const result = await rendered.saveAsync({
+        format: SaveFormat.JPEG,
+        compress: 1, //Compression on a scale 0-1, 1 meaning no compression
+      })
+      finalUri = result.uri
     }
+
+    onCapture(finalUri)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isCapturing.current = false
+    setBusy(false)
   }
+}
 
   //Render the camera
 

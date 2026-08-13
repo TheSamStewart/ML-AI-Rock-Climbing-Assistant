@@ -7,13 +7,10 @@ type AnalysisResultProps = {
 }
 
 export function AnalysisResult({ task_id }: AnalysisResultProps) {
-  
   //When this components is rendered useGetClimbAnalysis hook is called automaticlly
   //queryKey in useGetClimbAnalysis stops new call being made every time this page re renders, only when task_id is different it makes new calls
 
-  const {data, isPending, isError, error, timedOut} = useGetClimbAnalysis(task_id)
-  
-
+  const { data, isPending, isError, error, timedOut } = useGetClimbAnalysis(task_id)
 
   let content
   if (isPending) {
@@ -24,8 +21,7 @@ export function AnalysisResult({ task_id }: AnalysisResultProps) {
     content = <Text>{data.error}</Text>
   } else if (timedOut && data.status !== 'SUCCESS') {
     content = <Text>This is taking longer than expected. Please try again later.</Text>
-  }
-  else if (data.status !== 'SUCCESS') {
+  } else if (data.status !== 'SUCCESS') {
     content = <Text>Analysing...</Text>
   } else {
     content = <Text>{data.result}</Text>
@@ -33,7 +29,6 @@ export function AnalysisResult({ task_id }: AnalysisResultProps) {
 
   return <View style={styles.container}>{content}</View>
 }
-
 
 const styles = StyleSheet.create({
   container: {

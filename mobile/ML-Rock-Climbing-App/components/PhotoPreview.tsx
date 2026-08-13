@@ -13,7 +13,6 @@ type PhotoPreviewProps = {
 }
 
 export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) {
-  
   //Climb analysis submission - mutate() triggers the POST, state drives the UI
 
   const { mutate, isPending, isError, error } = useClimbAnalysis()
@@ -30,7 +29,7 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
             //A fresh idempotency key per press
             mutate(
               { uri, idempotencyKey: Crypto.randomUUID() },
-              { onSuccess: (data) => onSubmitted(data.task_id) },
+              { onSuccess: (data) => onSubmitted(data.task_id) }
             )
           }
           title={isPending ? 'Submitting…' : 'Submit'}

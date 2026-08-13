@@ -1,4 +1,4 @@
-import Constants from "expo-constants";
+import Constants from 'expo-constants'
 
 //Type for response
 
@@ -19,7 +19,6 @@ type SuccessResponse = {
   result: string
 }
 
-
 export type getClimbAnalysisResponse = InProgressResponse | FailureResponse | SuccessResponse
 
 //Use expo constant to get IP to send req to DEV ONLY
@@ -27,12 +26,11 @@ export type getClimbAnalysisResponse = InProgressResponse | FailureResponse | Su
 const host = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost'
 export const API_URL = `http://${host}:8000`
 
-export async function getClimbAnalysis(task_id : string): Promise<getClimbAnalysisResponse> {
+export async function getClimbAnalysis(task_id: string): Promise<getClimbAnalysisResponse> {
+  const res = await fetch(`${API_URL}/analysis/${task_id}`, {
+    method: 'GET',
+  })
 
-    const res = await fetch(`${API_URL}/analysis/${task_id}`, {
-        method: 'GET'
-    })
-
-    if (!res.ok) throw new Error(`Analysis failed: ${res.status}`)
-    return (await res.json()) as getClimbAnalysisResponse
+  if (!res.ok) throw new Error(`Analysis failed: ${res.status}`)
+  return (await res.json()) as getClimbAnalysisResponse
 }

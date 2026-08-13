@@ -17,8 +17,10 @@ export const API_URL = `http://${host}:8000`
 
 export type ClimbAnalysisVariables = { uri: string; idempotencyKey: string }
 
-export async function climbAnalysis({ uri, idempotencyKey }: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
-
+export async function climbAnalysis({
+  uri,
+  idempotencyKey,
+}: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
   //Create unique filename for image
 
   const filename = uri.split('/').pop() ?? `climb-${Date.now()}.jpg`
