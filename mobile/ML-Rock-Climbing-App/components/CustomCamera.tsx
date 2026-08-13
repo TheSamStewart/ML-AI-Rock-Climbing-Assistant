@@ -45,7 +45,7 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
     setFacing((current: CameraType) => (current === 'back' ? 'front' : 'back'))
   }
 
-  //Takes picture when shutter button is pressed
+//Takes picture when shutter button is pressed
 
 const takePicture = async () => {
 
