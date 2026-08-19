@@ -45,53 +45,50 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
     setFacing((current: CameraType) => (current === 'back' ? 'front' : 'back'))
   }
 
-//Takes picture when shutter button is pressed
+  //Takes picture when shutter button is pressed
 
-const takePicture = async () => {
+  const takePicture = async () => {
+    //check isCapturing flag for duplicate button presses
 
-  //check isCapturing flag for duplicate button presses
+    if (isCapturing.current) return
 
-  if (isCapturing.current) return
+    isCapturing.current = true
+    setBusy(true)
 
-  isCapturing.current = true
-  setBusy(true)
+    //Take image
 
-  //Take image
+    try {
+      const photo = await cameraRef.current?.takePictureAsync()
+      if (!photo?.uri) return
 
-  try {
+      let finalUri = photo.uri
 
-    const photo = await cameraRef.current?.takePictureAsync()
-    if (!photo?.uri) return
+      // Only front camera needs correction for the use case
 
-    let finalUri = photo.uri
+      if (facing === 'front') {
+        //Loads uri into manipulation context so we can chain operations
 
-    // Only front camera needs correction for the use case
+        const context = ImageManipulator.manipulate(photo.uri)
 
-    if (facing === 'front') {
+        //Flip the image
 
-      //Loads uri into manipulation context so we can chain operations
+        const rendered = await context.flip(FlipType.Horizontal).renderAsync()
 
-      const context = ImageManipulator.manipulate(photo.uri)
+        const result = await rendered.saveAsync({
+          format: SaveFormat.JPEG,
+          compress: 1, //Compression on a scale 0-1, 1 meaning no compression
+        })
+        finalUri = result.uri
+      }
 
-      //Flip the image
-
-      const rendered = await context.flip(FlipType.Horizontal).renderAsync()
-  
-      const result = await rendered.saveAsync({
-        format: SaveFormat.JPEG,
-        compress: 1, //Compression on a scale 0-1, 1 meaning no compression
-      })
-      finalUri = result.uri
+      onCapture(finalUri)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      isCapturing.current = false
+      setBusy(false)
     }
-
-    onCapture(finalUri)
-  } catch (e) {
-    console.error(e)
-  } finally {
-    isCapturing.current = false
-    setBusy(false)
   }
-}
 
   //Render the camera
 
