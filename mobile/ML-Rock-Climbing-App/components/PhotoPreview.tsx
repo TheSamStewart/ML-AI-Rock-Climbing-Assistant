@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { View, StyleSheet, Text, Button, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { runOnJS } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 import * as Crypto from 'expo-crypto'
 import { useClimbAnalysis } from '@/hooks/useClimbAnalysis'
 
@@ -42,7 +42,7 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
   const tapGesture = Gesture.Tap().onEnd((event, success) => {
     'worklet'
     if (success) {
-      runOnJS(addTap)(event.x, event.y)
+      scheduleOnRN(addTap, event.x, event.y)
     }
   })
 
