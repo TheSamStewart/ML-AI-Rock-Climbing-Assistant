@@ -1,4 +1,6 @@
-from fastapi import FastAPI, File, Header, Response, UploadFile, status
+import json
+
+from fastapi import FastAPI, File, Form, Header, Response, UploadFile, status
 from worker import app as celery_app, analysis as analysis_task
 from celery.result import AsyncResult
 from redis_client import redis_client
@@ -26,7 +28,18 @@ async def analysis(
     response: Response,
     photo: UploadFile = File(),
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    #JSON-encoded list of {x, y} normalized (0-1) hold-tap points from the mobile
+    #app - not consumed by the worker yet (still a stub), just threaded through so
+    #it isn't silently dropped once the analysis task actually uses it.
+    taps: str | None = Form(None),
 ):
+    #Lenient on purpose: this mirrors the rest of the endpoint's stub-level
+    #strictness (no Pydantic body model here) until the worker actually needs it.
+    try:
+        parsed_taps = json.loads(taps) if taps else []
+    except (TypeError, ValueError):
+        parsed_taps = []
+
     redis_key = f"idempotency:{idempotency_key}"
 
     reserved = await redis_client.set(
@@ -47,7 +60,7 @@ async def analysis(
         filename = photo.filename
         content_type = photo.content_type
 
-        task = analysis_task.delay(filename, content_type)
+        task = analysis_task.delay(filename, content_type, parsed_taps)
     except Exception:
         #Don't leave a failed attempt stuck as "processing" for the full TTL
         await redis_client.delete(redis_key)

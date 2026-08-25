@@ -15,11 +15,16 @@ export const API_URL = `http://${host}:8000`
 //defaulted here if the mutation ever gets retries enabled, retries
 //reuse the same key instead of each attempt making a new one.
 
-export type ClimbAnalysisVariables = { uri: string; idempotencyKey: string }
+export type ClimbAnalysisVariables = {
+  uri: string
+  idempotencyKey: string
+  taps: { x: number; y: number }[]
+}
 
 export async function climbAnalysis({
   uri,
   idempotencyKey,
+  taps,
 }: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
   //Create unique filename for image
 
@@ -34,6 +39,12 @@ export async function climbAnalysis({
     name: filename,
     type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
   } as any)
+
+  //Normalized (0-1) hold-tap coordinates, relative to the photo itself - see
+  //PhotoPreview.tsx for how these are computed. Sent as a JSON string since
+  //this is a multipart form request, not a JSON body.
+
+  formData.append('taps', JSON.stringify(taps))
 
   //make the request
 

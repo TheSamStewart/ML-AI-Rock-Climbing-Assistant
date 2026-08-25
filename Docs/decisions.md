@@ -90,6 +90,33 @@ This defines the image journey from user to worker.
 2. Frontend will store image at this place.
 3. Worker script and frontend are free to access this image as needed.
 4. 
+
 ## Why expo 54.0.0
 
 - Expo go on app store does not support the latest versions of Expo unless using paid Apple Developer program.
+
+## Coordinate Normalization for Hold Taps
+
+Explanation:
+
+The user taps the photo preview to mark which holds/areas an LLM should pay attention to. The raw gesture event only gives view-space coordinates - relative to whatever container it's inside, in screen pixels.
+
+The image is rendered with `resizeMode="contain"`, which scales the photo to fit its container while preserving aspect ratio. Unless the photo's aspect ratio happens to exactly match the screen's, this leaves letterboxing (black bars) on one axis. So a naive `x / screenWidth` normalization would be wrong - it measures a fraction of the screen.
+
+The fix: instead of rendering the image full-bleed and inverting the letterbox math after each tap, `PhotoPreview.tsx` now sizes a box to the photo's true aspect ratio up front (via `Image.getSize` for the photo's native pixel dimensions and `useWindowDimensions` for the available space - the same "contain" fit calculation, just done once as layout instead of per-tap as an offset correction), and centers that box in the black background. The `GestureDetector` wraps that box directly, so its bounds *are* the photo's rendered bounds - a tap can't land in a letterbox bar because that area isn't part of the tappable view at all.
+
+Why Chosen:
+
+Because the box's bounds equal the photo's bounds, a tap's `x / box.width` is already a correct, photo-relative fraction the moment it happens - no offset subtraction, no post-tap "was this actually inside the photo" check. `TapPoint` stores that normalized `[0,1]` value directly, so there's no second array to maintain - the same `taps` state that drives the on-screen dots is what gets sent straight through `useClimbAnalysis` to the backend.
+
+## Image Resolution Fix
+
+Explanation:
+
+The photo preview looked low-resolution. `CustomCamera.tsx` was calling `takePictureAsync()` with no options, and `<CameraView>` had no `pictureSize` prop set. Diagnosed with temporary logging: a captured photo came back as `888x1920` (ratio ~2.16:1), while `getAvailablePictureSizesAsync()` reported the device actually supports `3840x2160`, `1920x1080`, `1280x720`, `640x480`, `352x288` (all 16:9 or 4:3) plus qualitative aliases (`"Photo"`, `"High"`, `"Medium"`, `"Low"`). `888x1920` doesn't match any of those - it's not one of the sensor's real still-capture resolutions at all. Without an explicit `pictureSize`, the capture was instead sized off the on-screen preview surface, i.e. roughly the screen's own resolution, well below what the sensor supports.
+
+Why Chosen:
+
+Fixed by picking the largest real `WxH` entry from `getAvailablePictureSizesAsync()` (filtering out the qualitative aliases, which aren't valid `pictureSize` values) once the camera reports ready via `onCameraReady`, and pinning it to `<CameraView>`'s `pictureSize` prop. This forces capture to use the sensor's max supported still resolution instead of whatever the preview surface happened to be.
+
+Verified on-device: captured resolution went from `888x1920` (~1.7MP) to `1776x3840` (~6.8MP), a 4x pixel-count improvement. Note the aspect ratio is unchanged (`3840/1776 ≈ 2.16`, same as `1920/888`) - `pictureSize` raised the resolution ceiling, but the final JPEG is still cropped to match `<CameraView>`'s own on-screen aspect ratio rather than the sensor's native 16:9. Getting the literal full `3840x2160` would mean the saved photo shows more field of view than the on-screen preview did, which needs its own UI reconciliation - not pursued here since the 4x improvement already resolved the visible blur.
