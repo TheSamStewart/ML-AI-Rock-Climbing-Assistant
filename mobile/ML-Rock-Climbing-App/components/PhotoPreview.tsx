@@ -24,20 +24,24 @@ type TapPoint = {
 const CIRCLE_SIZE = 32
 
 export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) {
+  
   //Climb analysis submission - mutate() triggers the POST, state drives the UI
+  
   const { mutate, isPending, isError, error } = useClimbAnalysis()
 
   //Unnormalized screen taps, just view-space coords for now
+
   const [taps, setTaps] = useState<TapPoint[]>([])
 
-  const addTap = (x: number, y: number) => {
-    // This function runs on the JS thread
+  const addTap = (x: number, y: number) => { // This function runs on the JS thread
     setTaps((prev) => [...prev, { key: `${Date.now()}-${Math.random()}`, x, y }])
   }
 
   const undoTap = () => {
     setTaps((prev) => prev.slice(0, -1))
   }
+
+  //Detects tap and adds to taps state
 
   const tapGesture = Gesture.Tap().onEnd((event, success) => {
     'worklet'
@@ -49,11 +53,15 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
   //We preview the user the image, if submit is pressed make the call to the API
 
   return (
+
+    
     <View style={styles.previewContainer}>
       <GestureDetector gesture={tapGesture}>
         <View style={StyleSheet.absoluteFill}>
           <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" />
 
+          {/* Renders the screen taps onto the image preview */}
+          
           {taps.map((tap) => (
             <View
               key={tap.key}
@@ -66,6 +74,8 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
           ))}
         </View>
       </GestureDetector>
+
+      {/* Button rendering/logic */}
 
       <SafeAreaView edges={['bottom']} style={styles.previewActions}>
         <View style={styles.buttonsRow}>
