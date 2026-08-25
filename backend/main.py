@@ -25,16 +25,17 @@ IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24  # 24h
 @app.post("/analysis", status_code=status.HTTP_202_ACCEPTED)
 async def analysis(
     #Reponse here allows to access metadata, specifically here change status code.
+
     response: Response,
     photo: UploadFile = File(),
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
+
     #JSON-encoded list of {x, y} normalized (0-1) hold-tap points from the mobile
-    #app - not consumed by the worker yet (still a stub), just threaded through so
-    #it isn't silently dropped once the analysis task actually uses it.
+    #app 
     taps: str | None = Form(None),
 ):
     #Lenient on purpose: this mirrors the rest of the endpoint's stub-level
-    #strictness (no Pydantic body model here) until the worker actually needs it.
+
     try:
         parsed_taps = json.loads(taps) if taps else []
     except (TypeError, ValueError):

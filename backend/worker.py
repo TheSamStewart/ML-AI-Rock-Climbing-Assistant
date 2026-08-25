@@ -10,8 +10,6 @@ app = Celery("Tasks", broker=redis_url, backend=redis_url)
 @app.task
 def analysis(filename : str, content_type : str, taps=None):
     #taps: list of {x, y} normalized (0-1) hold-tap points from the mobile app.
-    #Not used yet - this task is still a stub - accepted here so the field
-    #isn't silently dropped once real (e.g. LLM/segmentation) processing lands.
 
     res = filename + content_type
 

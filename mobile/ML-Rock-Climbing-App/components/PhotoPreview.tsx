@@ -82,9 +82,6 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
   const addTap = (rawX: number, rawY: number) => {
     // This function runs on the JS thread
     if (!box) {
-      // Shouldn't be reachable - the GestureDetector below only mounts once
-      // `box` is non-null. Warns instead of silently dropping the tap in
-      // case a future change breaks that invariant.
       console.warn('addTap called before box was ready')
       return
     }

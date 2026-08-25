@@ -40,9 +40,7 @@ export async function climbAnalysis({
     type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
   } as any)
 
-  //Normalized (0-1) hold-tap coordinates, relative to the photo itself - see
-  //PhotoPreview.tsx for how these are computed. Sent as a JSON string since
-  //this is a multipart form request, not a JSON body.
+  //Normalized (0-1) hold-tap coordinates, relative to the photo itself 
 
   formData.append('taps', JSON.stringify(taps))
 
