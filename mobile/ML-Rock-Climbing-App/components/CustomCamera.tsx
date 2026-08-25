@@ -39,6 +39,33 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
   const [busy, setBusy] = useState(false)
 
+  //Without an explicit pictureSize, takePictureAsync() falls back to sizing the photo
+  //off the on-screen preview surface instead of one of the sensor's actual still-capture
+  //resolutions - We pick the largest real WxH size once the camera reports ready and pin it via the pictureSize prop below.
+
+  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined)
+
+  const onCameraReady = async () => {
+    const sizes = await cameraRef.current?.getAvailablePictureSizesAsync()
+    if (!sizes) return
+
+    //Sizes also include qualitative aliases (e.g. "Photo", "High") alongside real
+    //"WxH" entries - only the latter are usable as a pictureSize value.
+
+    const best = sizes
+      .map((size) => {
+        const match = /^(\d+)x(\d+)$/.exec(size)
+        return match ? { size, area: Number(match[1]) * Number(match[2]) } : null
+      })
+      .filter((s): s is { size: string; area: number } => s !== null)
+      .reduce<{ size: string; area: number } | null>(
+        (max, current) => (!max || current.area > max.area ? current : max),
+        null
+      )
+
+    if (best) setPictureSize(best.size)
+  }
+
   //Toggles the camera from front to back
 
   function toggleFacing() {
@@ -94,7 +121,13 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={styles.camera} facing={facing} />
+      <CameraView
+        ref={cameraRef}
+        style={styles.camera}
+        facing={facing}
+        pictureSize={pictureSize}
+        onCameraReady={onCameraReady}
+      />
       <View style={[styles.flipButtonContainer, { top: insets.top }]}>
         <TouchableOpacity onPress={toggleFacing}>
           <Image
