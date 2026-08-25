@@ -70,6 +70,16 @@
 2. The work happens elsewhere while the program is free to run
 3. Await pauses ony the current function
 4. When the work finished the promise is returned as furfilled or rejected, then the function unpauses.
-    
 
+## RN gesture-handler/worklets
 
+### reanimated / worklets
+
+- We use react-native-worklets (a dependency of reanimated) — specifically scheduleOnRN — to bridge communication between the RN/JS thread and the native UI thread. The worklet (a tagged function that can be invoked on the UI thread) passed to Gesture.Tap().onEnd() runs when the GestureDetector detects a native tap. scheduleOnRN then schedules the addTap() function to run on the JS thread, adding the tap to state and triggering a re-render.
+
+### gesture-handler
+
+- To detect native taps we use react-native-gesture-handler, which exposes native gesture recognizers (tap, pan, pinch, etc.) to React Native, running gesture detection on the UI thread rather than reimplementing it in JS.
+- The app root is wrapped in `<GestureHandlerRootView>` (required once, at the top level) so gesture-handler can attach to the native view hierarchy.
+- Per-component, we build a Gesture object via the builder API (e.g. `Gesture.Tap().onEnd((event, success) => { ... })`) and pass it to a `<GestureDetector gesture={tapGesture}>` wrapping the view we want to listen on.
+- The callback attached via .onEnd() is a worklet, and receives an `event` argument on detection — event.x / event.y give the tap position relative to the wrapped view.
