@@ -39,6 +39,15 @@ class Sample:
     status_code: int
     error: str | None = None
 
+    @property
+    def is_error(self) -> bool:
+        # status_code == 0 means the request never got a real HTTP response at
+        # all (see _timed_request below) - most commonly a client-side timeout,
+        # whose httpx exception can stringify to "" (str(exc) == ""), so relying
+        # on `self.error` alone silently misses it. Treat "no response" as a
+        # failure regardless of whether the exception happened to have a message.
+        return bool(self.error) or self.status_code == 0 or self.status_code >= 400
+
 
 @dataclass
 class Results:
@@ -54,14 +63,14 @@ class Results:
 
         lines = []
         total = len(self.samples)
-        total_errors = sum(1 for s in self.samples if s.error or s.status_code >= 400)
+        total_errors = sum(1 for s in self.samples if s.is_error)
         lines.append(f"Total requests: {total}")
         lines.append(f"Total errors:   {total_errors} ({(total_errors / total * 100) if total else 0:.2f}%)")
         lines.append("")
 
         for endpoint, samples in sorted(by_endpoint.items()):
             latencies = sorted(s.latency_s for s in samples)
-            errors = sum(1 for s in samples if s.error or s.status_code >= 400)
+            errors = sum(1 for s in samples if s.is_error)
             lines.append(f"[{endpoint}] n={len(samples)} errors={errors}")
             if latencies:
                 lines.append(
@@ -172,7 +181,7 @@ def main():
         print(f"\nRaw samples written to {args.csv}")
 
     error_rate = (
-        sum(1 for s in results.samples if s.error or s.status_code >= 400) / len(results.samples)
+        sum(1 for s in results.samples if s.is_error) / len(results.samples)
         if results.samples
         else 1.0
     )
