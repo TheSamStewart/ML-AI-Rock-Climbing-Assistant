@@ -28,4 +28,15 @@ jobs:
 
       - name: Run Pytest
         working-directory: backend
-        run: uv run pytest
+        # python -m pytest (not the `pytest` script) so this matches how the
+        # suite is run in local dev, where some environments block spawning
+        # venv .exe entry points directly.
+        run: uv run python -m pytest -v --cov --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+          retention-days: 14

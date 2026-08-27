@@ -18,4 +18,15 @@ dev = [
     "pytest>=9.1.1",
     "httpx2>=0.22",
     "mock>=5.0.1",
+    "pytest-cov>=7.1.0",
+    "httpx>=0.28.1",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "concurrency: exercises many concurrent requests against the app in-process (fakeredis-backed, no external services).",
+]
+
+[tool.coverage.run]
+source = ["main", "worker", "redis_client"]
+omit = ["test_*.py", "conftest.py", "load_test/*"]
