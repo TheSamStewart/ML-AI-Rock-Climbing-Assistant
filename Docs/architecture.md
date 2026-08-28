@@ -65,8 +65,6 @@ ML-AI-Rock-Climbing-Assistant/
 │   ├── Dockerfile
 │   ├── main.py                       # FastAPI app: POST /analysis, GET /analysis/{task_id}
 │   ├── worker.py                     # Celery app (currently a stub)
-│   ├── redis_client.py               # async Redis client for idempotency-key reservations
-│   └── test_main.py                  # pytest for API
 └── mobile/ML-Rock-Climbing-App/
     ├── README.md
     ├── Dockerfile
