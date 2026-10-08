@@ -1,54 +1,30 @@
 # Backend Testing Plan
 
-Scope: `backend/` — a FastAPI app (`main.py`) that accepts a climbing-photo
-analysis request, hands it to a Celery task (`worker.py`) via Redis
-(`redis_client.py` for the API's own idempotency bookkeeping, Celery's own
-Redis connection for the broker/result-backend).
+Scope: `backend/` — a FastAPI app (`main.py`) with `POST /detect` (YOLO via
+`detection.py`, detections cached in Redis) and `POST /analysis` (resolves the
+user's selected hold ids against that cache, hands the hold dict to a Celery
+task in `worker.py` that calls Claude). `redis_client.py` is the API's own
+async client (idempotency keys + detections cache); Celery has its own Redis
+connection for broker/result-backend.
 
-## 1. What existed before this pass
+## 1–2. Per-file coverage
 
-`test_main.py` had 4 tests covering the happy path and one conflict case for
-`POST /analysis` and two states for `GET /analysis/{task_id}`. `redis_client.py`
-and `worker.py` had zero tests. Nothing exercised concurrent requests, which
-is the one property this design leans on hardest (the `SET NX` idempotency
-reservation).
+The per-test breakdown lives in [Docs/testing.md](../Docs/testing.md) — keep
+that as the single source of truth instead of duplicating it here. Principles
+that apply across files:
 
-## 2. Files and what "comprehensive" means for each
-
-### `main.py` (FastAPI routes)
-- `POST /analysis` happy path, already covered.
-- Idempotency states: key free → reserve + create task; key holds
-  `"processing"` → 409; key holds a **finished** task id → replay that
-  task id without creating a new task (this case was untested — it's the
-  main reason the idempotency key exists at all).
-- `taps` form field: absent, valid JSON, invalid JSON (must silently fall
-  back to `[]`, per the code's documented lenient-parsing intent).
-- Failure cleanup: if `analysis_task.delay()` raises after the key is
-  reserved, the reservation must be deleted so the client isn't locked out
-  for the full 24h TTL — untested before this pass.
-- Missing/blank `Idempotency-Key` header → FastAPI 422 validation error.
-- `GET /analysis/{task_id}` for every Celery state the handler branches on:
-  `FAILURE`, `PENDING`, `STARTED`, `RETRY`, and the default/`SUCCESS` branch
-  returning `result`.
-
-### `redis_client.py`
-Pure configuration module — no functions to call, so the "unit" here is:
-does it read `REDIS_URL` from the environment, does it fall back to the
-documented default when unset, and is `decode_responses=True` actually set
-(the code comment explains this matters: without it, `"processing"` string
-comparisons would always fail against raw bytes). Tested via
-`importlib.reload` under `monkeypatch.setenv`, inspecting the constructed
-client's connection kwargs — no real Redis connection needed since
-`Redis.from_url` doesn't connect eagerly.
-
-### `worker.py`
-- The `analysis` task's actual logic (currently a stub:
-  `filename + content_type`), called directly as a plain function — no
-  Celery worker needed for that.
-- The task is registered on the Celery `app` under a stable name.
-- `app.conf.broker_url` / `result_backend` pick up `REDIS_URL` the same way
-  `redis_client.py` does, including the localhost default — same
-  reload-under-monkeypatch technique.
+- No real infra in pytest: `fakeredis` (with `decode_responses=True`, same as
+  the real client), mocked `analysis_task.delay`, mocked Anthropic client,
+  stubbed YOLO model (`detection.get_model` patched to return an
+  ultralytics-shaped fake result).
+- The one real-model test is marked `slow` and skips when `models/best.pt`
+  (gitignored) is absent, so CI never runs it.
+- Validation order in `/analysis` matters and is tested: bad/too-few
+  selections are rejected before any Redis read; unknown detection/hold ids
+  are rejected before an idempotency key is reserved.
+- Env-var wiring (`REDIS_URL`) is tested via `importlib.reload` under
+  `monkeypatch`; those tests run last in their file since they rebind
+  module globals.
 
 ## 3. Concurrency correctness (the part that matters at 10,000 users)
 
@@ -135,8 +111,13 @@ sizing, worth revisiting once there's real usage data:
 - No test hits a real Redis or a real Celery broker — everything is
   `fakeredis`/mocked in the pytest suite by design (fast, deterministic,
   no infra dependency in CI).
-- `worker.py`'s `analysis` task is a stub; tests verify its current
-  (trivial) behavior, not future real analysis logic that doesn't exist
-  yet.
+- No test calls the real Claude API, and the real YOLO model only runs in
+  the opt-in `slow` smoke test — prompt *quality* and detection *accuracy*
+  aren't covered by pytest, only the wiring/contract around them.
+- Tap-to-hold matching now happens client-side (`utils/holdMatching.ts` in
+  the mobile app), so it has no backend tests; the backend only does the
+  id lookup (`detection.select_holds`).
+- `load_test/simulate_load.py` still targets the old photo-upload
+  `/analysis` contract and needs porting to `/detect` → `/analysis`.
 - No auth exists yet (noted in `main.py`'s own comments), so idempotency
   keys are global, not per-user — tests reflect that as-is.

@@ -32,6 +32,8 @@ services:
     command: celery -A worker.app worker --loglevel=info
     environment:
       REDIS_URL: redis://redis:6379/0
+      # Forwarded from the host shell/.env - the coaching LLM call needs this.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     volumes:
       - ./backend:/app
     depends_on:
@@ -41,7 +43,12 @@ services:
   frontend:
     build: ./mobile/ML-Rock-Climbing-App
     restart: unless-stopped
-    command: npx expo start --host lan
+    command: sh -c "npm ls --depth=0 >/dev/null 2>&1 || npm ci; exec npx expo start --host lan"
+    # Without a TTY, Expo CLI can't tell it's running interactively and drops
+    # its whole Expo Go connection banner - the QR code and exp:// URL never
+    # print, just a plain "Waiting on http://localhost:8081" line for web.
+    tty: true
+    stdin_open: true
     ports:
       - "8081:8081"
     environment:
@@ -50,8 +57,16 @@ services:
       # not your Windows machine's real Wi-Fi/Ethernet address. That wrong IP
       # ends up in Constants.expoConfig.hostUri and breaks every API call from
       # a physical phone. This overrides the auto-detection with the real one.
-      # Update this if you switch networks or your machine's IP changes.
-      REACT_NATIVE_PACKAGER_HOSTNAME: "192.168.1.71"
+      # Sourced from .env (HOST_LAN_IP) instead of hardcoded here so switching
+      # networks never means editing this file - run
+      # scripts/refresh-lan-ip.ps1 to detect the current IP, write it to
+      # .env, and recreate this container (no image rebuild needed).
+      REACT_NATIVE_PACKAGER_HOSTNAME: "${HOST_LAN_IP}"
+      # expo start runs non-interactively here, so there's no TTY to run
+      # `expo login` against. An access token (from expo.dev account settings
+      # -> Access Tokens) authenticates the CLI instead, matching whatever
+      # account Expo Go on your phone is signed into.
+      EXPO_TOKEN: ${EXPO_TOKEN}
     volumes:
       - ./mobile/ML-Rock-Climbing-App:/app
       - /app/node_modules

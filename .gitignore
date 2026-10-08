@@ -7,3 +7,21 @@ node_modules
 expo-env.d.ts
 .expo/
 .vscode/
+personal_docs/
+
+# Secrets - docker-compose reads .env from the project root automatically;
+# never commit real keys.
+.env
+.env.*
+!.env.example
+
+# Model weights: too large/binary for git, drop them in locally per
+# backend/models/README.md.
+backend/models/*
+!backend/models/README.md
+
+# pytest-cov output - regenerated on every run, CI uploads its own as an artifact.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

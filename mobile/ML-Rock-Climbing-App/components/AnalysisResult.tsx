@@ -1,6 +1,5 @@
 import { useGetClimbAnalysis } from '@/hooks/useGetClimbAnalysis'
-import { useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, ScrollView, StyleSheet } from 'react-native'
 
 type AnalysisResultProps = {
   task_id: string
@@ -24,7 +23,19 @@ export function AnalysisResult({ task_id }: AnalysisResultProps) {
   } else if (data.status !== 'SUCCESS') {
     content = <Text>Analysing...</Text>
   } else {
-    content = <Text>{data.result}</Text>
+    //Placeholder list of the coaching steps - styling to be improved later
+    return (
+      <ScrollView contentContainerStyle={styles.stepsList}>
+        {data.result.steps.map((step) => (
+          <View key={step.step_number} style={styles.step}>
+            <Text style={styles.instruction}>
+              Step {step.step_number}: {step.instruction}
+            </Text>
+            <Text>{step.reason}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    )
   }
 
   return <View style={styles.container}>{content}</View>
@@ -37,5 +48,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     gap: 12,
+  },
+  stepsList: {
+    padding: 24,
+    gap: 16,
+  },
+  step: {
+    gap: 4,
+  },
+  instruction: {
+    fontWeight: 'bold',
   },
 })

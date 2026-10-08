@@ -1,11 +1,16 @@
 name: Load Test (backend)
 
-# Manual/scheduled only - NOT run on every PR. A GitHub-hosted runner (2
-# vCPU) can't honestly generate 10,000 concurrent connections; this exists
-# as a smoke-scale regression signal (default 200 concurrent virtual users),
-# not a validated "handles 10,000 users" gate. See backend/Agents.md
-# section 4 for the full reasoning and how to run this at a real scale
-# against staging.
+# Manual-only - NOT run on every PR, and NOT on a schedule. A GitHub-hosted
+# runner (2 vCPU) running the whole stack (redis + a single-process,
+# --reload dev uvicorn + an unconfigured-concurrency Celery worker) alongside
+# the load generator itself isn't a realistic target - most of what it
+# measures is the runner's own resource contention, not the app. A prior
+# scheduled run against this setup showed ~78% of requests timing out at the
+# client's own 10s timeout, which is a runner-capacity artifact, not a
+# regression signal worth alerting on weekly. Re-enable a schedule (or just
+# run this manually) once there's a real host - e.g. a VPS - to point
+# --base-url at, where the numbers reflect the app instead of the CI runner.
+# See backend/Agents.md section 4 for the full reasoning.
 
 on:
   workflow_dispatch:
@@ -18,8 +23,6 @@ on:
         description: "Seconds to run after ramp-up"
         required: false
         default: "60"
-  schedule:
-    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
 
 jobs:
   load-test:

@@ -13,10 +13,22 @@ type FailureResponse = {
   error: string
 }
 
+//Shape of the LLM coaching output - keep in sync with COACHING_OUTPUT_SCHEMA in backend/worker.py
+
+export type ClimbStep = {
+  step_number: number
+  instruction: string
+  reason: string
+}
+
+export type ClimbAnalysis = {
+  steps: ClimbStep[]
+}
+
 type SuccessResponse = {
   task_id: string
   status: 'SUCCESS'
-  result: string
+  result: ClimbAnalysis
 }
 
 export type getClimbAnalysisResponse = InProgressResponse | FailureResponse | SuccessResponse
