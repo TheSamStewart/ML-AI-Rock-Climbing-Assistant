@@ -19,3 +19,9 @@ personal_docs/
 # backend/models/README.md.
 backend/models/*
 !backend/models/README.md
+
+# pytest-cov output - regenerated on every run, CI uploads its own as an artifact.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
