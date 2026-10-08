@@ -1,5 +1,4 @@
 import asyncio
-import io
 import uuid
 
 import pytest
@@ -15,26 +14,25 @@ from main import app
 
 CONCURRENT_REQUESTS = 300
 
-
-def _analysis_payload():
-    return {
-        "files": {"photo": ("test_image.jpg", io.BytesIO(b"fake binary image contents"), "image/jpeg")},
-    }
+pytestmark = [pytest.mark.anyio, pytest.mark.concurrency]
 
 
-@pytest.mark.anyio
-@pytest.mark.concurrency
-async def test_concurrent_requests_same_key_create_exactly_one_task(mock_celery_task):
+async def _fire_analysis(transport, key, detection_id):
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        return await ac.post(
+            "/analysis",
+            headers={"Idempotency-Key": key},
+            data={"detection_id": detection_id, "selected_hold_ids": "[0, 1, 2]"},
+        )
+
+
+async def test_concurrent_requests_same_key_create_exactly_one_task(mock_celery_task, cached_detection_id):
     key = str(uuid.uuid4())
     transport = ASGITransport(app=app)
 
-    async def fire_one():
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            files = {"photo": ("test_image.jpg", b"fake binary image contents", "image/jpeg")}
-            headers = {"Idempotency-Key": key}
-            return await ac.post("/analysis", files=files, headers=headers)
-
-    responses = await asyncio.gather(*(fire_one() for _ in range(CONCURRENT_REQUESTS)))
+    responses = await asyncio.gather(
+        *(_fire_analysis(transport, key, cached_detection_id) for _ in range(CONCURRENT_REQUESTS))
+    )
 
     # The one property that actually matters at scale: no matter how many
     # requests race for the same key, only one Celery task gets created.
@@ -51,21 +49,28 @@ async def test_concurrent_requests_same_key_create_exactly_one_task(mock_celery_
     assert task_ids == {"test-task-id-1234"}
 
 
-@pytest.mark.anyio
-@pytest.mark.concurrency
-async def test_concurrent_requests_distinct_keys_all_create_tasks(mock_celery_task):
+async def test_concurrent_requests_distinct_keys_all_create_tasks(mock_celery_task, cached_detection_id):
     keys = [str(uuid.uuid4()) for _ in range(CONCURRENT_REQUESTS)]
     transport = ASGITransport(app=app)
 
-    async def fire_one(key):
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            files = {"photo": ("test_image.jpg", b"fake binary image contents", "image/jpeg")}
-            headers = {"Idempotency-Key": key}
-            return await ac.post("/analysis", files=files, headers=headers)
-
-    responses = await asyncio.gather(*(fire_one(k) for k in keys))
+    responses = await asyncio.gather(*(_fire_analysis(transport, k, cached_detection_id) for k in keys))
 
     # Distinct keys must never be serialized against each other or dropped -
     # every one of them should independently succeed.
     assert all(r.status_code == 202 for r in responses)
     assert mock_celery_task.call_count == CONCURRENT_REQUESTS
+
+
+async def test_concurrent_detects_each_get_their_own_cached_detection_id(mock_run_detection, mock_redis_client, jpeg_bytes):
+    transport = ASGITransport(app=app)
+
+    async def fire_one():
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            return await ac.post("/detect", files={"photo": ("wall.jpg", jpeg_bytes, "image/jpeg")})
+
+    responses = await asyncio.gather(*(fire_one() for _ in range(CONCURRENT_REQUESTS)))
+
+    assert all(r.status_code == 200 for r in responses)
+    detection_ids = {r.json()["detection_id"] for r in responses}
+    assert len(detection_ids) == CONCURRENT_REQUESTS
+    assert len(await mock_redis_client.keys("detections:*")) == CONCURRENT_REQUESTS

@@ -1,8 +1,7 @@
-import { CameraView, CameraType } from 'expo-camera'
-import { StyleSheet, View, TouchableOpacity, Image, useWindowDimensions } from 'react-native'
+import { CameraView } from 'expo-camera'
+import { StyleSheet, View, TouchableOpacity, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useRef, useState } from 'react'
-import { ImageManipulator, FlipType, SaveFormat } from 'expo-image-manipulator'
 
 //Typing for props
 
@@ -35,8 +34,6 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
   //Camera states
 
-  const [facing, setFacing] = useState<CameraType>('back')
-
   const [busy, setBusy] = useState(false)
 
   //Without an explicit pictureSize, takePictureAsync() falls back to sizing the photo
@@ -66,12 +63,6 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
     if (best) setPictureSize(best.size)
   }
 
-  //Toggles the camera from front to back
-
-  function toggleFacing() {
-    setFacing((current: CameraType) => (current === 'back' ? 'front' : 'back'))
-  }
-
   //Takes picture when shutter button is pressed
 
   const takePicture = async () => {
@@ -88,27 +79,7 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
       const photo = await cameraRef.current?.takePictureAsync()
       if (!photo?.uri) return
 
-      let finalUri = photo.uri
-
-      // Only front camera needs correction for the use case
-
-      if (facing === 'front') {
-        //Loads uri into manipulation context so we can chain operations
-
-        const context = ImageManipulator.manipulate(photo.uri)
-
-        //Flip the image
-
-        const rendered = await context.flip(FlipType.Horizontal).renderAsync()
-
-        const result = await rendered.saveAsync({
-          format: SaveFormat.JPEG,
-          compress: 1, //Compression on a scale 0-1, 1 meaning no compression
-        })
-        finalUri = result.uri
-      }
-
-      onCapture(finalUri)
+      onCapture(photo.uri)
     } catch (e) {
       console.error(e)
     } finally {
@@ -124,18 +95,10 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
       <CameraView
         ref={cameraRef}
         style={styles.camera}
-        facing={facing}
+        facing="back"
         pictureSize={pictureSize}
         onCameraReady={onCameraReady}
       />
-      <View style={[styles.flipButtonContainer, { top: insets.top }]}>
-        <TouchableOpacity onPress={toggleFacing}>
-          <Image
-            style={styles.icon}
-            source={require('../assets/images/flipoutline_110902.png')}
-          ></Image>
-        </TouchableOpacity>
-      </View>
       <View style={[styles.shutterContainer, { bottom: insets.bottom + width * 0.06 }]}>
         <TouchableOpacity disabled={busy} onPress={takePicture} style={[styles.shutter, shutter]} />
       </View>
@@ -149,13 +112,6 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
-  },
-  flipButtonContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
   },
   shutterContainer: {
     position: 'absolute',
@@ -175,10 +131,5 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-  },
-  icon: {
-    width: 48,
-    height: 48,
-    resizeMode: 'contain',
   },
 })

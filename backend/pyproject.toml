@@ -5,10 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "anthropic>=1.0.0",
     "celery>=5.6.3",
     "fastapi>=0.139.2",
+    "numpy>=2.5.2",
     "python-multipart>=0.0.20",
     "redis>=8.0.1",
+    "ultralytics>=8.4.131",
     "uvicorn>=0.51.0",
 ]
 
@@ -25,8 +28,9 @@ dev = [
 [tool.pytest.ini_options]
 markers = [
     "concurrency: exercises many concurrent requests against the app in-process (fakeredis-backed, no external services).",
+    "slow: loads the real YOLO weights (models/best.pt); auto-skipped when they're absent, e.g. in CI.",
 ]
 
 [tool.coverage.run]
-source = ["main", "worker", "redis_client"]
+source = ["main", "worker", "detection", "redis_client"]
 omit = ["test_*.py", "conftest.py", "load_test/*"]

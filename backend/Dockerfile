@@ -1,5 +1,18 @@
 FROM python:3.14-slim
 
+# ultralytics pulls in full (non-headless) opencv-python, which links against
+# X11/GL shared libraries that don't ship in the slim image - nothing here
+# renders a GUI, but cv2 still needs these .so files present to import.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libxcb1 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # uv binary from the official distroless image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 

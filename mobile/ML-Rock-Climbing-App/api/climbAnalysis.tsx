@@ -15,36 +15,24 @@ export const API_URL = `http://${host}:8000`
 //defaulted here if the mutation ever gets retries enabled, retries
 //reuse the same key instead of each attempt making a new one.
 
+//No photo here - detection already happened via /detect (see api/detectHolds.tsx)
+//before the user ever started tapping, so submission only needs to reference
+//that detection_id plus which of its detections the user selected.
+
 export type ClimbAnalysisVariables = {
-  uri: string
+  detectionId: string
   idempotencyKey: string
-  taps: { x: number; y: number }[]
+  selectedHoldIds: number[]
 }
 
 export async function climbAnalysis({
-  uri,
+  detectionId,
   idempotencyKey,
-  taps,
+  selectedHoldIds,
 }: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
-  //Create unique filename for image
-
-  const filename = uri.split('/').pop() ?? `climb-${Date.now()}.jpg`
-  const ext = /\.(\w+)$/.exec(filename)?.[1] ?? 'jpg'
-
-  //Create the formData for the request
-
   const formData = new FormData()
-  formData.append('photo', {
-    uri,
-    name: filename,
-    type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-  } as any)
-
-  //Normalized (0-1) hold-tap coordinates, relative to the photo itself 
-
-  formData.append('taps', JSON.stringify(taps))
-
-  //make the request
+  formData.append('detection_id', detectionId)
+  formData.append('selected_hold_ids', JSON.stringify(selectedHoldIds))
 
   const res = await fetch(`${API_URL}/analysis`, {
     method: 'POST',
