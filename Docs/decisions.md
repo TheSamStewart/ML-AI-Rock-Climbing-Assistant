@@ -20,6 +20,7 @@ ctrl + k then v to preview in vs code
 - [Hold denotion logic](#hold-denotion-logic) — Status: Accepted · Date: 2026-09-29 (uncommitted)
 - [best.pt inference settings](#bestpt-inference-settings-detectionpy) — Status: Accepted · Date: 2026-09-29
 - [Coaching output as JSON steps](#coaching-output-as-json-steps-workerpy-analysisresulttsx) — Status: Accepted · Date: 2026-10-01
+- [Camera mode slider](#camera-mode-slider-modeslidertsx-customcameratsx) — Status: Accepted · Date: 2026-10-09
 
 ## Stack Decisions
 
@@ -218,3 +219,18 @@ Why Chosen:
 - **Structured outputs (`output_config.format` + `COACHING_OUTPUT_SCHEMA`)** - the API enforces the schema, so valid JSON doesn't rely on the prompt alone. Truncated (`max_tokens`) or unparseable output fails the task, and the app shows the error like any other failure.
 - **Steps with a separate `reason`** - the frontend can style each move and its explanation independently later. Tips go into the relevant step's `reason` instead of a separate list.
 - The schema and `ClimbStep`/`ClimbAnalysis` in `getClimbAnalysis.tsx` must be kept in sync by hand.
+
+## Camera mode slider (`ModeSlider.tsx`, `CustomCamera.tsx`)
+
+Status: Accepted · Date: 2026-10-09
+
+Explanation:
+
+Snapchat-style carousel next to the shutter. Mode circles sit to the right of the shutter, swiping right to left slides one into the shutter ring to select it, swiping back returns to plain capture. Only "Static Route Analysis" for now - a placeholder circle with no functionality yet. `onModeChange` fires once the slider settles on a new mode (`null` for plain capture), this is where the mode's functionality will hook in.
+
+Why Chosen:
+
+- Matches the Snapchat camera styling the app already follows - modes can be switched with one thumb without leaving the camera.
+- Modes live in one `CAMERA_MODES` array, so adding "Coaching Analysis" etc. is a one-line change.
+- Each mode can take an optional `style` in `CAMERA_MODES` (colour, border, opacity etc.) applied on top of the default circle. Size and position stay controlled by the carousel so every icon still centres in the shutter ring.
+- The pan uses `activeOffsetX` so a tap on the shutter isn't mistaken for a swipe.

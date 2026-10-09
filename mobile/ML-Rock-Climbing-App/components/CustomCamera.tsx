@@ -2,6 +2,7 @@ import { CameraView } from 'expo-camera'
 import { StyleSheet, View, TouchableOpacity, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useRef, useState } from 'react'
+import { ModeSlider } from './ModeSlider'
 
 //Typing for props
 
@@ -100,7 +101,9 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
         onCameraReady={onCameraReady}
       />
       <View style={[styles.shutterContainer, { bottom: insets.bottom + width * 0.06 }]}>
-        <TouchableOpacity disabled={busy} onPress={takePicture} style={[styles.shutter, shutter]} />
+        <ModeSlider size={size}>
+          <TouchableOpacity disabled={busy} onPress={takePicture} style={[styles.shutter, shutter]} />
+        </ModeSlider>
       </View>
     </View>
   )
