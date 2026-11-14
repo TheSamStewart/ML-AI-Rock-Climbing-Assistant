@@ -1,20 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, StyleSheet, Text, Button, Image, ActivityIndicator, useWindowDimensions } from 'react-native'
+import {
+  View,
+  StyleSheet,
+  Text,
+  Button,
+  Image,
+  ActivityIndicator,
+  useWindowDimensions,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import Svg, { Polygon } from 'react-native-svg'
+import Svg, { G, Line, Polygon, Text as SvgText } from 'react-native-svg'
 import { scheduleOnRN } from 'react-native-worklets'
 import * as Crypto from 'expo-crypto'
 import { useClimbAnalysis } from '@/hooks/useClimbAnalysis'
 import { useDetectHolds } from '@/hooks/useDetectHolds'
 import { matchTapToHold } from '@/utils/holdMatching'
+import { formatDistance } from '@/utils/boltSpacing'
+import { GravityReading } from '@/hooks/useGravityReading'
 
 //Handles the captured photo only - preview, retake, and submission to analysis.
 //Knows nothing about camera permissions or capture itself.
 
 type PhotoPreviewProps = {
   uri: string
+  gravity: GravityReading | null
+  boltSpacingCm: number
   onRetake: () => void
   onSubmitted: (task_id: string) => void
 }
@@ -34,6 +46,15 @@ const MIN_SELECTED_HOLDS = 3
 const MIN_SCALE = 1
 const MAX_SCALE = 4
 
+//Shared by a distance label's outline and fill passes.
+
+const LABEL_TEXT_PROPS = {
+  fontSize: 14,
+  fontWeight: 'bold',
+  textAnchor: 'middle',
+  alignmentBaseline: 'middle',
+} as const
+
 //Clamps a translate offset so the zoomed image can never be panned past its
 //own edges
 
@@ -43,7 +64,7 @@ function clampTranslate(t: number, boxDim: number, s: number) {
   return Math.min(maxT, Math.max(-maxT, t))
 }
 
-export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) {
+export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitted }: PhotoPreviewProps) {
   //Climb analysis submission - mutate() triggers the POST, state drives the UI
 
   const { mutate, isPending, isError, error } = useClimbAnalysis()
@@ -61,12 +82,17 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
   } = useDetectHolds()
 
   useEffect(() => {
-    detectMutate({ uri })
+    detectMutate({ uri, gravity })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uri])
 
-  const detections = detectData?.detections ?? []
+  const detections = useMemo(() => detectData?.detections ?? [], [detectData])
   const detectionId = detectData?.detection_id ?? null
+  const scaleData = detectData?.scale ?? null
+
+  //distances_units rows/cols follow the detections array order, not ids.
+
+  const indexById = useMemo(() => new Map(detections.map((d, i) => [d.id, i])), [detections])
 
   //Ordered ids of the detections the user has selected (tap toggles
   //membership) - order is kept so Undo can pop the most recent one.
@@ -165,6 +191,38 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
     )
   }
 
+  //One segment per consecutive pair of picks (not all pairs - unreadable past
+  //a few holds). cm is null when the backend couldn't scale the photo, so the
+  //line still draws but without a label. Recomputed from boltSpacingCm, so
+  //changing the setting never needs detection re-run.
+
+  const segments = useMemo(() => {
+    const result: {
+      key: string
+      x1: number
+      y1: number
+      x2: number
+      y2: number
+      cm: number | null
+    }[] = []
+    if (!box) return result
+    for (let i = 1; i < selectedHoldIds.length; i++) {
+      const a = indexById.get(selectedHoldIds[i - 1])
+      const b = indexById.get(selectedHoldIds[i])
+      if (a === undefined || b === undefined) continue
+      const units = scaleData?.distances_units?.[a]?.[b]
+      result.push({
+        key: `${selectedHoldIds[i - 1]}-${selectedHoldIds[i]}`,
+        x1: detections[a].centroid.x * box.width,
+        y1: detections[a].centroid.y * box.height,
+        x2: detections[b].centroid.x * box.width,
+        y2: detections[b].centroid.y * box.height,
+        cm: units === undefined ? null : units * boltSpacingCm,
+      })
+    }
+    return result
+  }, [box, selectedHoldIds, indexById, detections, scaleData, boltSpacingCm])
+
   const undoSelection = () => {
     setSelectedHoldIds((prev) => prev.slice(0, -1))
   }
@@ -197,8 +255,16 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
     .onUpdate((e) => {
       'worklet'
       if (!box) return
-      translateX.value = clampTranslate(savedTranslateX.value + e.translationX, box.width, scale.value)
-      translateY.value = clampTranslate(savedTranslateY.value + e.translationY, box.height, scale.value)
+      translateX.value = clampTranslate(
+        savedTranslateX.value + e.translationX,
+        box.width,
+        scale.value
+      )
+      translateY.value = clampTranslate(
+        savedTranslateY.value + e.translationY,
+        box.height,
+        scale.value
+      )
     })
     .onEnd(() => {
       'worklet'
@@ -241,7 +307,11 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
   )
 
   const animatedImageStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
   }))
 
   //We preview the user the image, if submit is pressed make the call to the API
@@ -275,6 +345,62 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
                     />
                   )
                 })}
+
+                {/* Wall angle above each selected hold, in degrees from vertical
+                    (positive = overhanging). An estimate - see angles_deg in api/detectHolds.tsx. */}
+
+                {selectedHoldIds.map((id) => {
+                  const index = indexById.get(id)
+                  if (index === undefined) return null
+                  const angle = scaleData?.angles_deg?.[index]
+                  if (angle === null || angle === undefined) return null
+                  const x = detections[index].centroid.x * box.width
+                  const y = detections[index].centroid.y * box.height - 18
+                  const label = `≈${Math.round(angle)}°`
+                  return (
+                    <G key={`angle-${id}`}>
+                      <SvgText x={x} y={y} stroke="black" strokeWidth={4} {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                      <SvgText x={x} y={y} fill="#7CFC00" {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                    </G>
+                  )
+                })}
+
+                {/* Lines between consecutive picks, labels drawn after so they sit on top */}
+
+                {segments.map((s) => (
+                  <Line
+                    key={`line-${s.key}`}
+                    x1={s.x1}
+                    y1={s.y1}
+                    x2={s.x2}
+                    y2={s.y2}
+                    stroke="yellow"
+                    strokeWidth={2}
+                  />
+                ))}
+                {/* Each label drawn twice - a black outline under white fill - so it
+                    reads on any wall colour (react-native-svg has no paintOrder). */}
+
+                {segments.map((s) => {
+                  if (s.cm === null) return null
+                  const label = formatDistance(s.cm)
+                  const x = (s.x1 + s.x2) / 2
+                  const y = (s.y1 + s.y2) / 2
+                  return (
+                    <G key={`label-${s.key}`}>
+                      <SvgText x={x} y={y} stroke="black" strokeWidth={4} {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                      <SvgText x={x} y={y} fill="white" {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                    </G>
+                  )
+                })}
               </Svg>
             </Animated.View>
           </View>
@@ -302,17 +428,29 @@ export function PhotoPreview({ uri, onRetake, onSubmitted }: PhotoPreviewProps) 
                   detectionId,
                   idempotencyKey: Crypto.randomUUID(),
                   selectedHoldIds,
+                  boltSpacingCm,
                 },
                 { onSuccess: (data) => onSubmitted(data.task_id) }
               )
             }
             title={isPending ? 'Submitting…' : 'Submit'}
-            disabled={isPending || isDetecting || !detectionId || selectedHoldIds.length < MIN_SELECTED_HOLDS}
+            disabled={
+              isPending ||
+              isDetecting ||
+              !detectionId ||
+              selectedHoldIds.length < MIN_SELECTED_HOLDS
+            }
           />
         </View>
         {!isDetecting && selectedHoldIds.length < MIN_SELECTED_HOLDS && (
           <Text style={styles.hintText}>
-            Select at least {MIN_SELECTED_HOLDS} holds ({selectedHoldIds.length}/{MIN_SELECTED_HOLDS})
+            Select at least {MIN_SELECTED_HOLDS} holds ({selectedHoldIds.length}/
+            {MIN_SELECTED_HOLDS})
+          </Text>
+        )}
+        {scaleData?.status === 'insufficient_bolts' && (
+          <Text style={styles.hintText}>
+            No bolt holes found - distances unavailable for this photo
           </Text>
         )}
         {isDetectError && <Text style={styles.errorText}>{detectError.message}</Text>}

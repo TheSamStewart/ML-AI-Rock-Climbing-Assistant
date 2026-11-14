@@ -68,7 +68,7 @@ ML-AI-Rock-Climbing-Assistant/
 ├── .github/workflows/
 │   ├── pytest.yml                    # CI: runs the full backend pytest suite with coverage
 │   └── load-test.yml                 # manual/weekly: runs load_test/simulate_load.py against a real stack
-├── Docs/
+├── docs/
 │   ├── architecture.md               # what the system is, how it fits together
 │   ├── decisions.md                  # why each tech/pattern was chosen
 │   ├── localhost.md                  # running the full stack locally
@@ -80,11 +80,16 @@ ML-AI-Rock-Climbing-Assistant/
 │   ├── detection.py                  # YOLO model loading; run_detection() (id'd detections); select_holds() lookup
 │   ├── worker.py                     # Celery app: analysis task builds the coaching prompt + calls Claude, returns JSON steps
 │   ├── redis_client.py               # async Redis client for idempotency-key + detections-cache reservations
-│   ├── conftest.py                   # fakeredis + mocked Celery task fixtures, autouse
-│   ├── test_main.py                  # pytest for the API endpoints
-│   ├── test_redis_client.py          # pytest for redis_client.py's env-var wiring
-│   ├── test_worker.py                # pytest for the Celery task + broker/backend wiring
-│   ├── test_concurrency.py           # pytest: idempotency race-safety under concurrent requests
+│   ├── bolts.py                      # bolt-hole detection on the full-res photo
+│   ├── scale.py                      # bolt lattice fit, panel homographies, hold distances, wall length
+│   ├── eval_scale.py                 # dev-only overlay + accuracy report (not used by the API)
+│   ├── tests/                        # every pytest file; run from backend/ (testpaths in pyproject.toml)
+│   │   ├── conftest.py               # fakeredis + mocked Celery task fixtures, autouse
+│   │   ├── test_main.py              # pytest for the API endpoints
+│   │   ├── test_redis_client.py      # pytest for redis_client.py's env-var wiring
+│   │   ├── test_worker.py            # pytest for the Celery task + broker/backend wiring
+│   │   ├── test_concurrency.py       # pytest: idempotency race-safety under concurrent requests
+│   │   └── test_detection.py, test_bolts.py, test_scale.py, test_panels_reference.py
 │   ├── load_test/
 │   │   └── simulate_load.py          # async load-test script against a real stack (not part of pytest)
 │   └── models/

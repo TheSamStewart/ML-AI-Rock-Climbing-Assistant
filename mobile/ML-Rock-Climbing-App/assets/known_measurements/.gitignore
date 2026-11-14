@@ -1,0 +1,2 @@
+# HEIC originals duplicate the .jpeg copies the tests and eval scripts use (human, 2026-11-13).
+*.heic

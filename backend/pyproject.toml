@@ -26,6 +26,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+# Tests live in tests/; "." keeps the app modules (scale, bolts, main, ...)
+# importable however pytest is launched.
+testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "concurrency: exercises many concurrent requests against the app in-process (fakeredis-backed, no external services).",
     "slow: loads the real YOLO weights (models/best.pt); auto-skipped when they're absent, e.g. in CI.",
@@ -33,4 +37,4 @@ markers = [
 
 [tool.coverage.run]
 source = ["main", "worker", "detection", "redis_client"]
-omit = ["test_*.py", "conftest.py", "load_test/*"]
+omit = ["tests/*", "load_test/*"]

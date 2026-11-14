@@ -70,18 +70,32 @@ def test_centroid_empty_polygon_raises():
 # --- select_holds ---
 
 
-def test_select_holds_groups_by_class_in_selection_order(sample_detections):
+def test_select_holds_returns_flat_list_in_pick_order(sample_detections):
     result = select_holds(sample_detections, [3, 2, 0])
 
-    assert result == {"HOLD": [(0.6, 0.1), (0.2, 0.9)], "VOLUME": [(0.5, 0.4)]}
+    assert result == [
+        {"id": 3, "class_name": "HOLD", "x": 0.6, "y": 0.1},
+        {"id": 2, "class_name": "VOLUME", "x": 0.5, "y": 0.4},
+        {"id": 0, "class_name": "HOLD", "x": 0.2, "y": 0.9},
+    ]
+
+
+def test_select_holds_entries_have_exactly_the_contract_keys(sample_detections):
+    result = select_holds(sample_detections, [0, 1, 2, 3])
+
+    assert all(set(h) == {"id", "class_name", "x", "y"} for h in result)
+    json.dumps(result)
 
 
 def test_select_holds_duplicate_ids_are_kept(sample_detections):
-    assert select_holds(sample_detections, [1, 1]) == {"HOLD": [(0.4, 0.6), (0.4, 0.6)]}
+    assert select_holds(sample_detections, [1, 1]) == [
+        {"id": 1, "class_name": "HOLD", "x": 0.4, "y": 0.6},
+        {"id": 1, "class_name": "HOLD", "x": 0.4, "y": 0.6},
+    ]
 
 
 def test_select_holds_empty_selection(sample_detections):
-    assert select_holds(sample_detections, []) == {}
+    assert select_holds(sample_detections, []) == []
 
 
 def test_select_holds_unknown_id_raises(sample_detections):
@@ -254,7 +268,7 @@ def test_get_model_loads_once_and_caches(reset_model_cache):
 # --- real-model smoke test (local only - best.pt is gitignored) ---
 
 _SAMPLE_IMAGES = sorted(
-    (Path(__file__).parent.parent / "mobile" / "ML-Rock-Climbing-App" / "assets" / "images").glob(
+    (Path(__file__).resolve().parents[2] / "mobile" / "ML-Rock-Climbing-App" / "assets" / "images").glob(
         "climbing-route-detection-*[!d].jpg"
     )
 )

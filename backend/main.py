@@ -1,12 +1,15 @@
 import io
 import json
 import logging
+import math
 from uuid import uuid4
 
+import bolts
 import detection
-from fastapi import FastAPI, File, Form, Header, Response, UploadFile, status
+import scale as scale_module
+from fastapi import FastAPI, File, Form, Header, Request, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from redis.exceptions import RedisError
 from worker import app as celery_app, analysis as analysis_task
 from celery.result import AsyncResult
@@ -43,17 +46,53 @@ DETECTIONS_TTL_SECONDS = 60 * 60  # 1h
 
 MIN_SELECTED_HOLDS = 3
 
+#User-set bolt grid spacing - keep in sync with the mobile app's
+#utils/boltSpacing.ts. Defaulted so older clients that don't send it still work.
+
+DEFAULT_BOLT_SPACING_CM = 20.0
+MIN_BOLT_SPACING_CM = 10.0
+MAX_BOLT_SPACING_CM = 50.0
+
+
+def _parse_gravity(raw: str | None) -> list[float] | None:
+    """The phone's accelerometer reading as sent by the app: a JSON list
+    "[x, y, z]" (or "x,y,z"). Anything else is ignored, not rejected: the
+    reading only improves the wall angle, and a bad one must not fail /detect."""
+    if raw is None or not raw.strip():
+        return None
+    try:
+        values = json.loads(raw) if raw.strip().startswith("[") else raw.split(",")
+        parsed = [float(v) for v in values]
+    except (TypeError, ValueError):
+        return None
+    return parsed if len(parsed) == 3 and all(math.isfinite(v) for v in parsed) else None
+
+
+def _focal_35mm(image: Image.Image) -> float | None:
+    """EXIF FocalLengthIn35mmFilm, or None. Read before exif_transpose."""
+    try:
+        value = image.getexif().get_ifd(0x8769).get(41989)
+        return float(value) if value else None
+    except Exception:  # noqa: BLE001 - optional metadata, never fail the request over it
+        return None
+
 
 @app.post("/detect")
-async def detect(response: Response, photo: UploadFile = File()):
+async def detect(response: Response, photo: UploadFile = File(), gravity: str | None = Form(None)):
     contents = await photo.read()
 
     try:
         image = Image.open(io.BytesIO(contents))
+        focal_35mm = _focal_35mm(image)
         #Image.open() only reads the header - force the full pixel decode now
         #so a truncated/corrupt body fails here with a clear 422, not deep
         #inside YOLO's own image handling later.
         image.load()
+        #Phones often store the photo sideways plus an EXIF "rotate me" tag,
+        #which the app's image view applies - so detections, bolts and hold
+        #taps must all use the rotated pixels, or tap matching and distances
+        #come out sideways. Neither PIL nor ultralytics applies it by itself.
+        image = ImageOps.exif_transpose(image)
     except (UnidentifiedImageError, OSError):
         #UnidentifiedImageError = not an image at all; plain OSError = valid
         #header but truncated body (e.g. a dropped mobile upload).
@@ -71,23 +110,46 @@ async def detect(response: Response, photo: UploadFile = File()):
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return {"detail": "Hold detection failed - try again."}
 
+    #Bolt holes are ~10 px on a typical photo, so bolt detection and scale use
+    #the full-res image, not the 1024 px detection thumbnail - the detections
+    #themselves are normalized, so they line up. Same EXIF-rotated pixels YOLO saw.
+
+    try:
+        found_bolts = await run_in_threadpool(bolts.detect_bolt_holes, image, detections)
+        scale = await run_in_threadpool(
+            scale_module.compute_scale,
+            detections,
+            image.size,
+            found_bolts,
+            gravity=_parse_gravity(gravity),
+            focal_35mm=focal_35mm,
+        )
+    except Exception:
+        logger.exception("detect: scale computation failed")
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"detail": "Wall scale estimation failed - try again."}
+
+    #Both keys written in one transaction so /analysis never sees one without the other.
+
     detection_id = uuid4().hex
     try:
-        await redis_client.set(
-            f"detections:{detection_id}", json.dumps(detections), ex=DETECTIONS_TTL_SECONDS
-        )
+        async with redis_client.pipeline(transaction=True) as pipe:
+            pipe.set(f"detections:{detection_id}", json.dumps(detections), ex=DETECTIONS_TTL_SECONDS)
+            pipe.set(f"scale:{detection_id}", json.dumps(scale), ex=DETECTIONS_TTL_SECONDS)
+            await pipe.execute()
     except RedisError:
         logger.exception("detect: failed to cache detections")
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"detail": "Couldn't save detection results - try again."}
 
-    return {"detection_id": detection_id, "detections": detections}
+    return {"detection_id": detection_id, "detections": detections, "scale": scale}
 
 
 @app.post("/analysis", status_code=status.HTTP_202_ACCEPTED)
 async def analysis(
     #Reponse here allows to access metadata, specifically here change status code.
 
+    request: Request,
     response: Response,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
 
@@ -114,18 +176,55 @@ async def analysis(
         response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         return {"detail": f"At least {MIN_SELECTED_HOLDS} holds must be selected before submitting for analysis."}
 
-    cached = await redis_client.get(f"detections:{detection_id}")
-    if cached is None:
+    #bolt_spacing_cm is read from the raw form, not declared as a Form param:
+    #FastAPI turns an empty form value into the default, but a field sent
+    #empty is a client bug, not "use the default". Absent = older client = default.
+
+    form = await request.form()
+    raw_spacing = form.get("bolt_spacing_cm")
+    if raw_spacing is None:
+        bolt_spacing_cm = DEFAULT_BOLT_SPACING_CM
+    elif not isinstance(raw_spacing, str) or raw_spacing.strip() == "":
+        response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        return {"detail": "No bolt spacing provided."}
+    else:
+        try:
+            bolt_spacing_cm = float(raw_spacing)
+        except ValueError:
+            bolt_spacing_cm = math.nan
+
+        #isfinite first - "nan" parses as a float and fails every comparison.
+
+        if not math.isfinite(bolt_spacing_cm) or not (MIN_BOLT_SPACING_CM <= bolt_spacing_cm <= MAX_BOLT_SPACING_CM):
+            response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+            return {"detail": f"Bolt spacing must be between {MIN_BOLT_SPACING_CM:g} and {MAX_BOLT_SPACING_CM:g} cm."}
+
+    cached, cached_scale = await redis_client.mget(f"detections:{detection_id}", f"scale:{detection_id}")
+    if cached is None or cached_scale is None:
         response.status_code = status.HTTP_410_GONE
         return {"detail": "Detection results expired or not found - retake the photo and try again."}
 
     detections = json.loads(cached)
+    scale = json.loads(cached_scale)
 
     try:
-        master_hold_dict = detection.select_holds(detections, parsed_ids)
+        holds = detection.select_holds(detections, parsed_ids)
     except detection.UnknownHoldIdError:
         response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         return {"detail": "One or more selected hold ids were not found in the detection results."}
+
+    #Grid units only - the worker converts to cm with bolt_spacing_cm.
+
+    route = {
+        "holds": holds,
+        "distances_units": scale_module.select_distances(scale, detections, parsed_ids),
+        "tiers": scale_module.select_tiers(scale, detections, parsed_ids),
+        "angles_deg": scale_module.select_angles(scale, detections, parsed_ids),
+        "angle_source": scale.get("angle_source"),
+        "angle_margin_deg": scale.get("angle_margin_deg"),
+        "wall_length_units": scale.get("wall_length_units"),
+        "bolt_spacing_cm": bolt_spacing_cm,
+    }
 
     redis_key = f"idempotency:{idempotency_key}"
 
@@ -143,7 +242,7 @@ async def analysis(
         return {"task_id": existing}
 
     try:
-        task = analysis_task.delay(master_hold_dict)
+        task = analysis_task.delay(route)
     except Exception:
         #Don't leave a failed attempt stuck as "processing" for the full TTL
         await redis_client.delete(redis_key)

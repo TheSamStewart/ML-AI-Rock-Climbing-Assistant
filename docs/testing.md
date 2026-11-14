@@ -45,12 +45,18 @@ they're present.
 │   ├── detection.py                  # YOLO loading, run_detection(), select_holds()
 │   ├── worker.py                     # Celery app: analysis task builds the coaching prompt + calls Claude
 │   ├── redis_client.py               # async Redis client for idempotency keys + detections cache
-│   ├── conftest.py                   # shared fixtures (fake redis, mocked Celery task, sample detections)
-│   ├── test_main.py                  # API endpoints
-│   ├── test_detection.py             # detection.py geometry, filtering, selection (stubbed model)
-│   ├── test_worker.py                # prompt payload, Claude call + error mapping, Celery wiring
-│   ├── test_concurrency.py           # idempotency race-safety + concurrent /detect
-│   ├── test_redis_client.py          # redis_client.py env-var wiring
+│   ├── bolts.py                      # bolt-hole detection
+│   ├── scale.py                      # bolt lattice, panels, hold distances, wall length
+│   ├── tests/                        # every pytest file (testpaths in pyproject.toml)
+│   │   ├── conftest.py               # shared fixtures (fake redis, mocked Celery task, sample detections)
+│   │   ├── test_main.py              # API endpoints
+│   │   ├── test_detection.py         # detection.py geometry, filtering, selection (stubbed model)
+│   │   ├── test_worker.py            # prompt payload, Claude call + error mapping, Celery wiring
+│   │   ├── test_concurrency.py       # idempotency race-safety + concurrent /detect
+│   │   ├── test_redis_client.py      # redis_client.py env-var wiring
+│   │   ├── test_bolts.py             # bolt-hole detection (synthetic + slow reference photos)
+│   │   ├── test_scale.py             # lattice fit, distances, wall length (synthetic + slow reference photos)
+│   │   └── test_panels_reference.py  # panels.json reference data checks
 │   ├── models/best.pt                # YOLO weights - gitignored, only present locally
 │   └── load_test/
 │       └── simulate_load.py          # async load-test script against a real stack (not part of pytest)

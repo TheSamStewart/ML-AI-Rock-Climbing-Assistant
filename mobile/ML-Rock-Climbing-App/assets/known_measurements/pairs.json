@@ -1,0 +1,42 @@
+{
+  "IMG_7552": {
+    "note": "Tape measured bolt to bolt (pairs) and along the wall surface (edges). Points are normalized x, y on the EXIF-upright photo, read by eye from the drawn lines (about +-1% of the photo, so +-3 cm on a pair); not yet pixel-exact.",
+    "pairs": [
+      {"name": "top green (red line)", "from": [0.580, 0.1925], "to": [0.619, 0.2210], "cm": 20},
+      {"name": "top white (yellow line)", "from": [0.803, 0.1985], "to": [0.830, 0.2285], "cm": 14},
+      {"name": "bottom blue (brown line)", "from": [0.360, 0.9475], "to": [0.559, 0.8785], "cm": 66},
+      {"name": "bottom green (green line)", "from": [0.477, 0.9440], "to": [0.633, 0.8825], "cm": 50},
+      {"name": "bottom white (yellow line)", "from": [0.760, 0.8975], "to": [0.867, 0.9460], "cm": 37}
+    ],
+    "edges": [
+      {"name": "top", "from": [0.220, 0.001], "to": [0.838, 0.0865], "cm": 200},
+      {"name": "right", "from": [0.838, 0.0865], "to": [0.935, 0.970], "cm": 352},
+      {"name": "bottom", "from": [0.935, 0.970], "to": [0.157, 0.960], "cm": 267},
+      {"name": "left", "from": [0.157, 0.960], "to": [0.220, 0.001], "cm": 358}
+    ]
+  },
+  "epic_wall": {
+    "note": "Different gym wall, 10 panels (angles 14-31 deg, see measurements.md). Pair points are the centres of the green number labels drawn on the photo (2420x3294, EXIF-upright), converted to normalized x, y; the checker snaps each to the nearest detected hold. Pairs 1, 4, 5 were measured bolt to bolt; pair 3 hand to hand (the endpoints are where a hand goes, not a bolt, so expect a few cm of extra difference). Pairs 2 and 6 and the 322 cm vertical line were deleted as measurement errors (human, 2026-11-13); the numbering keeps the original labels. 'edges' is the top green line drawn on the photo, endpoints fitted to its pixels (exact), measured along the wall surface. Bolt hole spacing: 25 cm per grid square (human, 2026-11-13; first read as 26 cm from '5 holes across a row = 1.04 m').",
+    "pairs": [
+      {"name": "1 yellow-yellow (bolt)", "from": [0.7483, 0.3509], "to": [0.8702, 0.3579], "cm": 38},
+      {"name": "3 black-black (hand)", "from": [0.1054, 0.6509], "to": [0.2417, 0.7493], "cm": 66},
+      {"name": "4 purple-black (bolt)", "from": [0.1008, 0.4098], "to": [0.5616, 0.4265], "cm": 141},
+      {"name": "5 purple crimp-pink (bolt)", "from": [0.6331, 0.5968], "to": [0.8913, 0.4976], "cm": 94}
+    ],
+    "edges": [
+      {"name": "horizontal line (top edge)", "from": [0.0463, 0.0613], "to": [0.9897, 0.0101], "cm": 302}
+    ]
+  },
+  "epic_wall_2": {
+    "note": "Same photo and wall as epic_wall (pixel-identical under the drawings; same gym, holds and panel angles). Bolt spacing 25 cm (human, 2026-11-13; supersedes the 26 cm read from '5 bolts across = 1.04 m'). Re-measured with a real tape measure (2026-11-13; raw notes in epic_wall_2_measured.txt). Pairs are labelled on the photo by small red digits 3-6 (the black 1 and 2 were deleted as measurement errors, human 2026-11-13: about 30-40% longer than the bolt grid and the earlier measurements of the same holds). Pairs 3-6 are bolt to bolt, and their points are the bolt hole beside each label (EXIF-upright, normalized), checked by eye on crops, about +-10 px; holds stand off the wall, so a bolt on a hold sits a few cm in front of the wall. 'snap': false = both ends are bare wall bolt holes, so the checker measures the points as given instead of snapping to a hold. The red vertical line (457 cm) is drawn on the photo; its endpoints are fitted to its pixels (diff against the undrawn copy). The horizontal line (301 cm) is left out (the human was unsure of it).",
+    "pairs": [
+      {"name": "3 black-big yellow (bolt)", "from": [0.2847, 0.9268], "to": [0.8231, 0.7538], "cm": 207},
+      {"name": "4 pink-pink (bolt)", "from": [0.8946, 0.4973], "to": [0.8876, 0.8206], "cm": 161},
+      {"name": "5 bare bolt holes (bolt)", "from": [0.8149, 0.8588], "to": [0.8004, 0.9812], "cm": 67, "snap": false},
+      {"name": "6 black-small yellow (bolt)", "from": [0.1029, 0.4078], "to": [0.4736, 0.6342], "cm": 167}
+    ],
+    "edges": [
+      {"name": "red vertical line", "from": [0.6475, 0.0288], "to": [0.6502, 0.9924], "cm": 457}
+    ]
+  }
+}

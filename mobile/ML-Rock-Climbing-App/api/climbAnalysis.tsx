@@ -23,16 +23,19 @@ export type ClimbAnalysisVariables = {
   detectionId: string
   idempotencyKey: string
   selectedHoldIds: number[]
+  boltSpacingCm: number
 }
 
 export async function climbAnalysis({
   detectionId,
   idempotencyKey,
   selectedHoldIds,
+  boltSpacingCm,
 }: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
   const formData = new FormData()
   formData.append('detection_id', detectionId)
   formData.append('selected_hold_ids', JSON.stringify(selectedHoldIds))
+  formData.append('bolt_spacing_cm', String(boltSpacingCm))
 
   const res = await fetch(`${API_URL}/analysis`, {
     method: 'POST',

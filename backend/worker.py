@@ -22,7 +22,7 @@ def get_anthropic_client():
     return _anthropic_client
 
 #System prompt for the coaching LLM call - persona, task, and output-format rules.
-#Wall angle, climber physical stats are NOT here yet - get added to the user content (as extra route/climber context) in a later step.
+#Climber physical stats are NOT here yet - they get added to the user content (as extra route/climber context) in a later step.
 
 COACHING_SYSTEM_PROMPT = """You are an expert, encouraging rock climbing coach.
 
@@ -46,8 +46,58 @@ that a climber of any experience level can follow, as a list of steps:
   avoid unexplained jargon, so the output is just as usable for a first-time
   climber as an experienced one.
 
+Each hold has an "id". Refer to holds by their position and type in your
+instructions (e.g. "the high left hold"), not by id - the id is only there so
+you can match a hold to its distances.
+
+Distances: "distances_cm" gives the straight-line distance in centimetres
+between every pair of selected holds, measured along the wall surface, and
+"wall_length_cm" gives the length of the wall in the photo. Use them to judge
+which holds are within reach of each other and how big each move is (e.g. a
+long reach, a dyno, or a short move between close holds).
+
+Accuracy: the distances are estimated from a photo, so they are approximate.
+The "accuracy" block explains the margin of error: a percentage of the
+distance plus a fixed allowance in cm for where the centre of each hold is.
+Each entry in "distances_cm" already has its margin worked out as
+"margin_cm", and a "tier": "A" means the wall's bolt grid was visible along
+the whole line, so the distance is the more reliable; "C" means holds or
+volumes hide the bolt grid along part of the line, so its scale is borrowed
+from further away and its margin is wider. If a move looks out of reach by no
+more than its margin_cm, give the climber the benefit of the doubt and treat
+it as reachable, rather than routing around it.
+
+Wall angle: when present, each hold has a "wall_angle_deg" - how steep the wall
+is around that hold, in degrees from vertical. 0 is a vertical wall, a positive
+angle is an overhang (the wall leans out over the climber, so the arms and core
+carry more of the load and the feet are easier to lose), and a small angle is
+gentle (about 10 degrees or less) while 30 or more is steep. The wall can change
+angle between holds, so look at the angle of both holds in a move. It is
+estimated from the photo: the "wall_angle" block gives its margin in degrees.
+Use the general steepness, and don't lean on the exact number - an angle that
+differs from another by less than the margin is the same steepness for your
+purposes. Where the margin makes a hold's angle uncertain, keep the advice
+about body position general. The estimate assumes the wall leans out, so a
+slab (a wall leaning back) can be mistaken for an overhang.
+
 Only reference holds present in the data you are given - never invent holds or
 coordinates. Keep instructions concise, one instruction per step."""
+
+#Distance margin given to the LLM (docs/features/wall_size_hold_distance.md,
+#"Accuracy results"), per confidence tier (scale.py, TIER_A_MAX_SUPPORT).
+#"A" (bolt grid visible along the whole line): the pooled p95 relative error
+#of held-out in-panel bolt pairs at reach range, rounded up - re-derive with
+#`eval_scale.py --accuracy` when the fit changes. "C" (scale borrowed across
+#hidden bolts): the pooled p95 of pairs measured across held-out discs of
+#bolts, rounded up. A distance with no tier is treated as "A".
+#CENTROID_ALLOWANCE_CM covers hold centres being estimates (centroid of the
+#hold's outline, standing off the wall); added to hold-to-hold distances
+#only, as wall length is measured bolt to bolt. Slice 6 re-calibrates it.
+
+DISTANCE_MARGIN_PCT_BY_TIER = {"A": 6, "C": 14}
+DISTANCE_MARGIN_PCT = DISTANCE_MARGIN_PCT_BY_TIER["A"]  #also the wall length's margin (bolt to bolt)
+DEFAULT_TIER = "A"
+CENTROID_ALLOWANCE_CM = 5
 
 #JSON schema the API enforces on the response (structured outputs) - the
 #mobile app maps over result.steps, so keep this in sync with getClimbAnalysis.tsx.
@@ -74,25 +124,122 @@ COACHING_OUTPUT_SCHEMA = {
 }
 
 
+#Grid units -> cm, rounded to the nearest mm - finer than that is false precision.
+
+def _to_cm(units: float | None, bolt_spacing_cm: float) -> float | None:
+    return None if units is None else round(units * bolt_spacing_cm, 1)
+
+
+def _margin_cm(cm: float | None, tier: str = DEFAULT_TIER) -> float | None:
+    pct = DISTANCE_MARGIN_PCT_BY_TIER.get(tier, DISTANCE_MARGIN_PCT_BY_TIER[DEFAULT_TIER])
+    return None if cm is None else round(cm * pct / 100 + CENTROID_ALLOWANCE_CM, 1)
+
+
+def build_route_data(route: dict) -> dict:
+    """route (as built by main.py's /analysis, in grid units) -> the JSON the
+    LLM sees, in cm.
+
+    distances_cm has one entry per unordered pair of distinct holds; repeated
+    ids (allowed by /analysis) are only paired once.
+    """
+    holds = route["holds"]
+    spacing = route["bolt_spacing_cm"]
+    matrix = route.get("distances_units")
+    tiers = route.get("tiers")
+
+    distances_cm = None
+    if matrix is not None:
+        distances_cm = []
+        first_index: dict[int, int] = {}
+        for i, hold in enumerate(holds):
+            first_index.setdefault(hold["id"], i)
+        unique = [i for i, hold in enumerate(holds) if first_index[hold["id"]] == i]
+        for a_pos, i in enumerate(unique):
+            for j in unique[a_pos + 1:]:
+                cm = _to_cm(matrix[i][j], spacing)
+                tier = tiers[i][j] if tiers is not None else DEFAULT_TIER
+                distances_cm.append({
+                    "from": holds[i]["id"],
+                    "to": holds[j]["id"],
+                    "cm": cm,
+                    "tier": tier,
+                    "margin_cm": _margin_cm(cm, tier),
+                })
+
+    #Wall angle per hold, in pick order like the holds themselves. Left out
+    #entirely (not null) when the scale has none - an older cached scale, or
+    #the photo gave no usable angle - so the LLM isn't shown a gap to explain.
+    angles = route.get("angles_deg")
+    has_angles = angles is not None and len(angles) == len(holds) and any(a is not None for a in angles)
+
+    hold_data = []
+    for i, h in enumerate(holds):
+        item = {"id": h["id"], "class_name": h["class_name"], "x": h["x"], "y": h["y"]}
+        if has_angles and angles[i] is not None:
+            item["wall_angle_deg"] = angles[i]
+        hold_data.append(item)
+
+    wall_angle = None
+    if has_angles:
+        margin = route.get("angle_margin_deg")
+        source = route.get("angle_source")
+        tilt = "and the phone's tilt when it was taken" if source == "sensor" else "with an assumed camera tilt"
+        wall_angle = {
+            "margin_deg": margin,
+            "source": source,
+            "guidance": (
+                f"wall_angle_deg is the wall's steepness around each hold in degrees from vertical "
+                f"(positive = overhanging), estimated from the photo {tilt}; "
+                f"it can be off by about {margin:g} degrees. Treat differences smaller than that as the same steepness."
+            ),
+        }
+
+    data = {
+        "holds": hold_data,
+        "distances_cm": distances_cm,
+        "wall_length_cm": _to_cm(route.get("wall_length_units"), spacing),
+        "accuracy": {
+            "margin_pct": DISTANCE_MARGIN_PCT,
+            "margin_pct_by_tier": dict(DISTANCE_MARGIN_PCT_BY_TIER),
+            "centroid_allowance_cm": CENTROID_ALLOWANCE_CM,
+            "applies_to": (
+                f"distances_cm (tier A: ±{DISTANCE_MARGIN_PCT_BY_TIER['A']}%, tier C: ±{DISTANCE_MARGIN_PCT_BY_TIER['C']}%, "
+                f"plus {CENTROID_ALLOWANCE_CM} cm, given per pair as margin_cm) "
+                f"and wall_length_cm (±{DISTANCE_MARGIN_PCT}%)"
+            ),
+            "guidance": (
+                f"Distances are photo estimates. A hold-to-hold distance can be off by up to "
+                f"{DISTANCE_MARGIN_PCT_BY_TIER['A']}% of its length for tier A (the bolt grid is visible along the "
+                f"whole line) or {DISTANCE_MARGIN_PCT_BY_TIER['C']}% for tier C (holds hide the bolt grid along part "
+                f"of the line, so the scale is borrowed), plus {CENTROID_ALLOWANCE_CM} cm, because hold "
+                f"centres are estimated; that margin is given for each pair as margin_cm. "
+                f"If a move looks out of reach by no more than its margin_cm, treat it as reachable."
+            ),
+        },
+    }
+    if wall_angle is not None:
+        data["wall_angle"] = wall_angle
+    return data
+
+
 def build_coaching_payload(
-    master_hold_dict: dict[str, list[tuple[float, float]]],
+    route: dict,
     model: str = "claude-opus-5",
 ) -> dict:
-    """Compile the master hold dict + coaching system prompt into a Claude
-    Messages API request payload - i.e. the kwargs for client.messages.create(**payload).
+    """Compile the route (selected holds + grid-unit distances, see
+    build_route_data) + coaching system prompt into a Claude Messages API
+    request payload - i.e. the kwargs for client.messages.create(**payload).
 
-    Only builds the request payload; call_coaching_llm() below sends it. Wall
-    angle / climber physical stats (ape index etc.) still need to be added to
-    the user content once that data is available.
+    Only builds the request payload; call_coaching_llm() below sends it.
+    Climber physical stats (ape index etc.) still need to be added to the user
+    content once that data is available.
     """
-    route_data = {
-        class_name: [{"x": x, "y": y} for x, y in coords]
-        for class_name, coords in master_hold_dict.items()
-    }
+    route_data = build_route_data(route)
 
     user_content = (
-        "Here is the detected route data (normalized image coordinates, "
-        "grouped by hold type):\n" + json.dumps(route_data)
+        "Here is the detected route data (holds in the order the climber "
+        "selected them, normalized image coordinates, plus hold-to-hold "
+        "distances):\n" + json.dumps(route_data)
     )
 
     return {
@@ -154,11 +301,11 @@ def call_coaching_llm(payload: dict) -> dict:
 
 
 @app.task
-def analysis(master_hold_dict: dict[str, list[list[float]]]):
-    #master_hold_dict: already-resolved {class_name: [(x, y), ...]} coordinates
-    #for the holds the client selected - detection and selection both already
-    #happened synchronously before this task was ever queued (see main.py's
-    #/detect and /analysis endpoints), so this task's only job is the LLM call.
+def analysis(route: dict):
+    #route: the already-resolved selected holds + their grid-unit distances
+    #(see build_route_data) - detection, scale and selection all happened
+    #synchronously before this task was ever queued (see main.py's /detect
+    #and /analysis endpoints), so this task's only job is the LLM call.
 
-    coaching_payload = build_coaching_payload(master_hold_dict)
+    coaching_payload = build_coaching_payload(route)
     return call_coaching_llm(coaching_payload)

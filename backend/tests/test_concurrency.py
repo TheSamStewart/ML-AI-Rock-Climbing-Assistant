@@ -74,3 +74,4 @@ async def test_concurrent_detects_each_get_their_own_cached_detection_id(mock_ru
     detection_ids = {r.json()["detection_id"] for r in responses}
     assert len(detection_ids) == CONCURRENT_REQUESTS
     assert len(await mock_redis_client.keys("detections:*")) == CONCURRENT_REQUESTS
+    assert len(await mock_redis_client.keys("scale:*")) == CONCURRENT_REQUESTS

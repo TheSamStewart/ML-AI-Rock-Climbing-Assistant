@@ -65,11 +65,34 @@ def sample_detections():
 
 
 @pytest.fixture
-async def cached_detection_id(mock_redis_client, sample_detections):
-    # Seeds the fake redis the way a prior /detect call would, so /analysis
-    # tests don't need to go through /detect first.
+def sample_scale():
+    # Hand-built (not computed by scale.compute_scale) so /analysis tests can
+    # check the sub-matrix selection against distinct, known values. Indexed
+    # in sample_detections order; symmetric with a zero diagonal.
+    return {
+        "status": "ok",
+        "bolt_count": 0,
+        "wall_length_units": 20.0,
+        "distances_units": [
+            [0.0, 1.0, 2.0, 3.0],
+            [1.0, 0.0, 4.0, 5.0],
+            [2.0, 4.0, 0.0, 6.0],
+            [3.0, 5.0, 6.0, 0.0],
+        ],
+        # Slice 5c: N rows of N chars, "A"/"C" per pair. Symmetric, "A" on the
+        # diagonal. C pairs: (0,2), (1,2), (1,3); the rest are A.
+        "tiers": ["AACA", "AACC", "CCAA", "ACAA"],
+    }
+
+
+@pytest.fixture
+async def cached_detection_id(mock_redis_client, sample_detections, sample_scale):
+    # Seeds the fake redis the way a prior /detect call would (both the
+    # detections and the scale key), so /analysis tests don't need to go
+    # through /detect first.
     detection_id = "cafebabe" * 4
     await mock_redis_client.set(f"detections:{detection_id}", json.dumps(sample_detections))
+    await mock_redis_client.set(f"scale:{detection_id}", json.dumps(sample_scale))
     return detection_id
 
 

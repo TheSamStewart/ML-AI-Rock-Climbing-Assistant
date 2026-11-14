@@ -3,14 +3,21 @@ import { StyleSheet, View, TouchableOpacity, useWindowDimensions } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useRef, useState } from 'react'
 import { ModeSlider } from './ModeSlider'
+import { GravityReading, useGravityReading } from '@/hooks/useGravityReading'
 
-//Typing for props
+//Typing for props - gravity is the phone's tilt when the shutter was pressed
+//(null when there is no sensor), used to work out the wall angle.
 
 type CustomCameraProps = {
-  onCapture: (uri: string) => void
+  onCapture: (uri: string, gravity: GravityReading | null) => void
 }
 
 export function CustomCamera({ onCapture }: CustomCameraProps) {
+  //Latest smoothed accelerometer reading, kept in a ref so reading it at the
+  //shutter doesn't re-render the camera
+
+  const gravity = useGravityReading()
+
   //Shutter size calculations
 
   const { width } = useWindowDimensions()
@@ -76,11 +83,16 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
     //Take image
 
+    //Read the tilt before the (slow) capture call so it is the tilt the phone
+    //was held at, not wherever it moved to while the photo was saved.
+
+    const tilt = gravity.current
+
     try {
       const photo = await cameraRef.current?.takePictureAsync()
       if (!photo?.uri) return
 
-      onCapture(photo.uri)
+      onCapture(photo.uri, tilt)
     } catch (e) {
       console.error(e)
     } finally {
