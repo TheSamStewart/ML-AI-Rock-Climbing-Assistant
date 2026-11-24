@@ -16,7 +16,7 @@ diagonals at s / sqrt(2). Ground truth is known exactly, so recall and false
 positives are measured, not eyeballed.
 
 The reference-photo tests at the bottom are marked slow and need models/best.pt
-plus the photos in mobile/ML-Rock-Climbing-App/assets/known_measurements.
+plus the photos in mobile/ML-Rock-Climbing-App/assets/known_measurements/reference.
 """
 
 import json
@@ -505,7 +505,7 @@ def test_image_larger_than_max_side_keeps_normalized_coords_and_full_res_diamete
 # --- reference photos (slow) ------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-KNOWN = REPO_ROOT / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements"
+KNOWN = REPO_ROOT / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements" / "reference"
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "best.pt"
 
 # Thresholds for IMG_7500 and IMG_7502-7504, all 3024x4032 phone shots of whole

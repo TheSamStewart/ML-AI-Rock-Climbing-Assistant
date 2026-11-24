@@ -25,3 +25,6 @@ backend/models/*
 .coverage.*
 coverage.xml
 htmlcov/
+
+# Synthetic volume-test scenes (regenerate with backend/fakewall.py)
+backend/fakewall_out/

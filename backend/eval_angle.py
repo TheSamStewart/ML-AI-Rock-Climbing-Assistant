@@ -9,7 +9,7 @@ the pitch that fits the measured angles best, which shows how much knowing the
 true tilt would matter.
 
 Usage (from backend/):
-  uv run python eval_angle.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/IMG_7500.jpeg ...
+  uv run python eval_angle.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/reference/IMG_7500.jpeg ...
   uv run python eval_angle.py <photos...> --pitch 10
 """
 

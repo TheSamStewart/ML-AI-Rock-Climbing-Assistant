@@ -122,3 +122,21 @@ ML-AI-Rock-Climbing-Assistant/
         └── ...                        # camera preview / dev test-photo assets
 ```
 
+## 5. What the coaching AI is told
+
+Everything the coaching AI (the LLM) receives when it writes the climbing steps. ☑ = built and sent today, ☐ = planned. Tick a row when it ships.
+
+| Done | Information | In plain words |
+| :---: | :--- | :--- |
+| ☑ | Picked holds | The holds the climber tapped, in the order they tapped them, each marked as a hold or a volume. |
+| ☑ | Where each hold is | How far across and how far down the photo the hold sits, as a fraction of the photo (not in cm). |
+| ☑ | Distance between holds | The distance between every pair of picked holds in cm, measured along the wall. Worked out from the wall's grid of bolt holes and the bolt spacing set in Settings. |
+| ☑ | How sure each distance is | "A" when the bolt holes are visible the whole way between the two holds, "C" when holds or volumes hide some of them. |
+| ☑ | Room for error on distances | How far off each distance could be (a few cm, more for "C"). The AI is told to treat a move as reachable if it is short by no more than this. |
+| ☑ | Wall length | Top to bottom of the wall that is in the photo, in cm. This is only the part in the photo, not the whole wall. |
+| ☑ | Wall steepness at each hold | Degrees from upright: positive means the wall leans out over the climber, negative means it leans back. Uses the phone's tilt when the photo was taken. |
+| ☑ | Room for error on steepness | About 8° when the phone's tilt was recorded, 15° when it wasn't, plus a warning that a wall leaning back can be mistaken for one leaning out. |
+| ☑ | How to coach | Be a friendly coach; give the start position, then one move per step with a short reason; use plain language; describe holds by where they are, not their number; never invent holds. |
+| ☐ | | |
+| ☐ | | |
+| ☐ | | |

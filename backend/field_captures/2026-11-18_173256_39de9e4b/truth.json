@@ -1,0 +1,37 @@
+{
+  "_help": "Fill by hand. Angles in degrees from vertical (+ overhang, - slab). Distances in cm along the wall surface. Hold ids are the numbers on overlay_<n>.jpg. measured_between: 'bolt' (bolt hole to bolt hole), 'centre' (middle of hold to middle of hold) or 'edge'. Leave null if unknown.",
+  "bolt_spacing_cm_measured": 25,
+  "bolt_pattern": "square with centre bolt",
+  "wall_angles": [
+    {
+      "where": "white hold",
+      "hold_ids": [
+        8
+      ],
+      "angle_deg": 17,
+      "how_measured": "tester's measurement (method not stated)",
+      "source": "confirmed by tester 2026-11-18: note 'same as photo before' (white 17); hold 8 is white"
+    },
+    {
+      "where": "green hold",
+      "hold_ids": [
+        9
+      ],
+      "angle_deg": 18,
+      "how_measured": "tester's measurement (method not stated)",
+      "source": "confirmed by tester 2026-11-18: note 'same as photo before' (green 18); hold 9 is green"
+    }
+  ],
+  "tape_pairs": [],
+  "wall_length_cm": null,
+  "camera": {
+    "distance_from_wall_m": null,
+    "height_m": null,
+    "held": "portrait (sensor roll within 3 deg)",
+    "notes": "tester: phone tilted about 30 deg; tester 2026-11-18: the sensor reading is correct, so the true camera pitch is 21.02 deg (the estimate in the note was rough)"
+  },
+  "conditions": "",
+  "notes": "BOLT SPACING WRONG IN APP: this capture was taken with the app's bolt spacing at the default 20 cm; the wall's real spacing is 25 cm (corrected in the app from the capture after 2026-11-18_174142_ac2132d6). Every cm in saves.json (legs cm, margin_cm, wall_length_cm) is therefore 1.25x too short. Grid units, tiers, angles and bolts are unaffected. Use cm = units x 25; see NOTE_bolt_spacing.md.\nFilled from the in-app note: 'Same as photo before, but phone tilted at about 30 degrees'",
+  "bolt_spacing_source": "known value for this wall: 25 cm (tester, 2026-11-18)",
+  "_filled_by": "agent, 2026-11-18, from saves.json notes; all assumptions confirmed by the tester the same day"
+}

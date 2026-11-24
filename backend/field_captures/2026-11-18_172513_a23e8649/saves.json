@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:25:14+00:00",
+    "selected_hold_ids": [
+      3,
+      27
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Phone held at roughly 20degrees  wall angle 25",
+    "holds": [
+      {
+        "id": 3,
+        "class_name": "HOLD",
+        "x": 0.5859414091353021,
+        "y": 0.5504223279638204,
+        "angle_deg": 24.1
+      },
+      {
+        "id": 27,
+        "class_name": "HOLD",
+        "x": 0.6667872310443718,
+        "y": 0.1368581042989581,
+        "angle_deg": 24.8
+      }
+    ],
+    "legs": [
+      {
+        "from": 3,
+        "to": 27,
+        "units": 7.223,
+        "cm": 144.5,
+        "tier": "C",
+        "margin_cm": 25.2
+      }
+    ],
+    "wall_length_cm": 341.2,
+    "overlay": "overlay_1.jpg"
+  }
+]

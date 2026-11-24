@@ -19,7 +19,7 @@ import { Asset } from 'expo-asset'
 //roughly phone-camera resolution - below ~3000 px tall bolts are lost.
 
 async function useTestPhoto(setUri: (uri: string) => void) {
-  const [asset] = await Asset.loadAsync(require('../assets/known_measurements/IMG_7504.jpeg'))
+  const [asset] = await Asset.loadAsync(require('../assets/known_measurements/reference/IMG_7504.jpeg'))
   setUri(asset.localUri ?? asset.uri)
 }
 

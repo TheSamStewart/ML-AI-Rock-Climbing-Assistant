@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:39:35+00:00",
+    "selected_hold_ids": [
+      28,
+      35
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Testing bolt holes hidden behind a volume left  distance bolt to bolt about 80angle is12 right is 20",
+    "holds": [
+      {
+        "id": 28,
+        "class_name": "HOLD",
+        "x": 0.12928636855246364,
+        "y": 0.38035392817901426,
+        "angle_deg": 17.2
+      },
+      {
+        "id": 35,
+        "class_name": "HOLD",
+        "x": 0.5726505430589851,
+        "y": 0.35146701857625035,
+        "angle_deg": 16.4
+      }
+    ],
+    "legs": [
+      {
+        "from": 28,
+        "to": 35,
+        "units": 3.816,
+        "cm": 76.3,
+        "tier": "C",
+        "margin_cm": 15.7
+      }
+    ],
+    "wall_length_cm": 364.1,
+    "overlay": "overlay_1.jpg"
+  }
+]

@@ -1,0 +1,15 @@
+IMG 7899
+
+Bolt to Bolt actual distance - 67cm
+Angle of panel 16
+
+IMG 7900
+
+Bolt to bolt actual 110cm
+Leftmost hold panel actual angle = 5
+Rightmost hold panel angle = 7
+
+IMG 7902
+
+Real Distance = 104cm
+Panel Angle = 24

@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:28:17+00:00",
+    "selected_hold_ids": [
+      6,
+      11
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Wall angles, 21 for bottom 54 for top distance 135 bolt to bolt",
+    "holds": [
+      {
+        "id": 6,
+        "class_name": "HOLD",
+        "x": 0.4918323923869828,
+        "y": 0.5844062382295607,
+        "angle_deg": 20.0
+      },
+      {
+        "id": 11,
+        "class_name": "HOLD",
+        "x": 0.2895130548243932,
+        "y": 0.3870340641923091,
+        "angle_deg": 54.5
+      }
+    ],
+    "legs": [
+      {
+        "from": 6,
+        "to": 11,
+        "units": 5.007,
+        "cm": 100.1,
+        "tier": "C",
+        "margin_cm": 19.0
+      }
+    ],
+    "wall_length_cm": 316.0,
+    "overlay": "overlay_1.jpg"
+  }
+]

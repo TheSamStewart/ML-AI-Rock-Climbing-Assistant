@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:32:58+00:00",
+    "selected_hold_ids": [
+      8,
+      9
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Same as photo before, but phone tilted at about 30 degrees",
+    "holds": [
+      {
+        "id": 8,
+        "class_name": "HOLD",
+        "x": 0.5172239901548429,
+        "y": 0.2737421531289501,
+        "angle_deg": 20.4
+      },
+      {
+        "id": 9,
+        "class_name": "HOLD",
+        "x": 0.7538128260704824,
+        "y": 0.3312977775821057,
+        "angle_deg": 18.3
+      }
+    ],
+    "legs": [
+      {
+        "from": 8,
+        "to": 9,
+        "units": 2.774,
+        "cm": 55.5,
+        "tier": "A",
+        "margin_cm": 8.3
+      }
+    ],
+    "wall_length_cm": 368.4,
+    "overlay": "overlay_1.jpg"
+  }
+]

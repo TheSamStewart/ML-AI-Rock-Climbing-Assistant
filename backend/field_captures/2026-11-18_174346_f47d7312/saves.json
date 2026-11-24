@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:43:47+00:00",
+    "selected_hold_ids": [
+      77,
+      26
+    ],
+    "bolt_spacing_cm": 25.0,
+    "notes": "Same but obstruction and further swaying",
+    "holds": [
+      {
+        "id": 77,
+        "class_name": "HOLD",
+        "x": 0.4807306010487816,
+        "y": 0.3706791304846867,
+        "angle_deg": 24.8
+      },
+      {
+        "id": 26,
+        "class_name": "HOLD",
+        "x": 0.680143656286653,
+        "y": 0.404510060905096,
+        "angle_deg": 24.6
+      }
+    ],
+    "legs": [
+      {
+        "from": 77,
+        "to": 26,
+        "units": 3.031,
+        "cm": 75.8,
+        "tier": "A",
+        "margin_cm": 9.5
+      }
+    ],
+    "wall_length_cm": 467.7,
+    "overlay": "overlay_1.jpg"
+  }
+]

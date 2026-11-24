@@ -309,7 +309,7 @@ async def test_detect_then_analysis_angles_reach_the_worker_payload(client, jpeg
 
 # --- reference photo (slow) ---
 
-EPIC = Path(__file__).resolve().parents[2] / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements" / "epic_wall.jpg"
+EPIC = Path(__file__).resolve().parents[2] / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements" / "reference" / "epic_wall.jpg"
 
 
 @pytest.mark.slow

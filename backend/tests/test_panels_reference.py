@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-KNOWN = Path(__file__).resolve().parents[2] / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements"
+KNOWN = Path(__file__).resolve().parents[2] / "mobile" / "ML-Rock-Climbing-App" / "assets" / "known_measurements" / "reference"
 PANELS = KNOWN / "panels.json"
 
 pytestmark = pytest.mark.skipif(not PANELS.exists(), reason="panels.json reference data missing")

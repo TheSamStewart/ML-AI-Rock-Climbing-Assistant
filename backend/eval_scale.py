@@ -8,7 +8,7 @@ detector found:
   grey fill   = HOLD/VOLUME polygon (blobs inside are ignored)
 
 Usage (from backend/):
-  uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/IMG_7500.jpeg
+  uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/reference/IMG_7500.jpeg
   uv run python eval_scale.py <photos...> --out <dir> --candidates
 
 Overlays go to --out (default: <system temp>/eval_scale), outside the repo.
@@ -40,7 +40,7 @@ ACCURACY_SEED = 0
 #Panel outlines digitised from the coloured lines on the annotated reference
 #photos (normalized x, y, EXIF-upright). Photos without an entry are scored
 #on same-patch pairs only.
-PANELS_FILE = Path(__file__).resolve().parent.parent / "mobile/ML-Rock-Climbing-App/assets/known_measurements/panels.json"
+PANELS_FILE = Path(__file__).resolve().parent.parent / "mobile/ML-Rock-Climbing-App/assets/known_measurements/reference/panels.json"
 
 #Tape measurements (--tape): hold pairs and wall edges, normalized x, y.
 TAPE_FILE = PANELS_FILE.with_name("pairs.json")

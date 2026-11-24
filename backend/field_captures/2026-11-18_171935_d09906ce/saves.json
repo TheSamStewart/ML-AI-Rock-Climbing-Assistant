@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:19:36+00:00",
+    "selected_hold_ids": [
+      9,
+      2
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Known overhang bottom hold 31 top 25",
+    "holds": [
+      {
+        "id": 9,
+        "class_name": "HOLD",
+        "x": 0.4130413716922028,
+        "y": 0.5711169478966662,
+        "angle_deg": 28.7
+      },
+      {
+        "id": 2,
+        "class_name": "HOLD",
+        "x": 0.18764374919641888,
+        "y": 0.31127655235407453,
+        "angle_deg": 26.3
+      }
+    ],
+    "legs": [
+      {
+        "from": 9,
+        "to": 2,
+        "units": 6.944,
+        "cm": 138.9,
+        "tier": "C",
+        "margin_cm": 24.4
+      }
+    ],
+    "wall_length_cm": 346.5,
+    "overlay": "overlay_1.jpg"
+  }
+]

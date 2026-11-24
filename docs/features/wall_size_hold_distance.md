@@ -56,15 +56,21 @@ D:\ML-Rock-Climbing-Coach-App\ML-AI-Rock-Climbing-Assistant\mobile\ML-Rock-Climb
 
 Inside know measurements you have measured photos
 
+Folder layout (tidied 2026-11-18):
+- `reference/`: everything the tests and eval scripts read. The full-res photos (`IMG_7500–7504.jpeg`, `IMG_7552.jpeg`, `epic_wall.jpg`, `epic_wall_2.jpg`) plus `panels.json` and `pairs.json`. "Use Test Photo" loads `reference/IMG_7504.jpeg`.
+- `originals/`: the HEIC originals (git-ignored). `IMG_7504.heic` is also the source of IMG_7504's panel outlines. The HEICs keep the iPhone's tilt reading in their metadata; the `.jpeg` copies of 7502–7504 and 7552 lost it.
+- `notes/`: the human's raw notes (`measurements.md`, `epic_wall_2_measured.txt`).
+- `gym_sessions/<date>/`: on-device app tests. `2026-11-17/` holds three PhotoPreview screenshots (IMG_7899, 7900, 7902; 1170×2532 with overlays, so not usable as reference photos) and their tape and angle notes.
+
 - Ground truth for now is the bolt grid itself: two bolts whose lattice offset is (i, j) squares are `bolt_spacing_cm × |(i, j)|` apart. Bolt pairs are held out of the fit and the predicted distance is compared to this.
   - The offsets come from `scale.index_lattice`. Since slice 5b that is each bolt's site in its segmented panel's lattice (rounded through the panel homography), with panels whose grid continues across a seam sharing one frame. Bolts in no panel still use the step-by-step walk (BFS). The walk alone slipped by one site on IMG_7502 (7 of 83 bolts), which is what its 12.6% mostly was (see Accuracy results, slice 5b).
-- Tape-measured hold-to-hold distances: `known_measurements/pairs.json` holds IMG_7552 (5 pairs, 4 edges), `epic_wall` (6 pairs, 2 lines, iPhone measuring app) and `epic_wall_2` (real tape, 2026-11-13; see "Slice 6"); `eval_scale.py --tape <spacing_cm>` compares them. See "Accuracy results (epic_wall)". Slice 6 uses them.
-- `epic_wall_2.jpg` is the same photo as `epic_wall.jpg` (pixel-identical under the drawings), with the tape pairs labelled by small red digits beside each end's bolt hole instead of panel outlines. Same wall, holds and panel angles. Raw notes: `epic_wall_2_measured.txt`.
+- Tape-measured hold-to-hold distances: `known_measurements/reference/pairs.json` holds IMG_7552 (5 pairs, 4 edges), `epic_wall` (6 pairs, 2 lines, iPhone measuring app) and `epic_wall_2` (real tape, 2026-11-13; see "Slice 6"); `eval_scale.py --tape <spacing_cm>` compares them. See "Accuracy results (epic_wall)". Slice 6 uses them.
+- `epic_wall_2.jpg` is the same photo as `epic_wall.jpg` (pixel-identical under the drawings), with the tape pairs labelled by small red digits beside each end's bolt hole instead of panel outlines. Same wall, holds and panel angles. Raw notes: `notes/epic_wall_2_measured.txt`.
 - `epic_wall.jpg` (2420×3294, a second gym wall): ten panels (P7–P16, 14–31°) outlined in red and numbered in green **on the photo itself**; outlines are in `panels.json` under `epic_wall`. The bolt square side is **25 cm** (human, 2026-11-13; it was first read as 26 cm from "5 holes across a row = 1.04 m", see "Slice 6"), not 20.
-- Panel outlines: `known_measurements/panels.json`, digitised (2026-10-19) from the coloured lines drawn on IMG_7500, 7502, 7503 and 7504, with angles from measurements.md. Normalized x, y on the EXIF-upright photo. IMG_7504's outlines are drawn on `IMG_7504.heic` (red 23°, yellow 13°); `IMG_7504.jpeg` stays clean for the app's "Use Test Photo". IMG_7501 has no outlines drawn.
+- Panel outlines: `known_measurements/reference/panels.json`, digitised (2026-10-19) from the coloured lines drawn on IMG_7500, 7502, 7503 and 7504, with angles from measurements.md. Normalized x, y on the EXIF-upright photo. IMG_7504's outlines are drawn on `originals/IMG_7504.heic` (red 23°, yellow 13°); `IMG_7504.jpeg` stays clean for the app's "Use Test Photo". IMG_7501 has no outlines drawn.
 
 ## Accuracy results (slice 4, 2026-10-19)
-`cd backend && uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/IMG_750?.jpeg --accuracy`. Leave-own-J-out held-out bolt pairs. "Reach range" = true distance 1.5–12.5 grid units (30–250 cm at 20 cm), the distances the LLM margin is for. In-panel = both bolts inside the same outline in panels.json.
+`cd backend && uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/reference/IMG_750?.jpeg --accuracy`. Leave-own-J-out held-out bolt pairs. "Reach range" = true distance 1.5–12.5 grid units (30–250 cm at 20 cm), the distances the LLM margin is for. In-panel = both bolts inside the same outline in panels.json.
 
 | Photo | All same-patch p95 | In-panel p95 | In-panel p95, reach range | In-panel strict refit p95 |
 |---|---|---|---|---|
@@ -126,9 +132,11 @@ At 1500 px, 7500 and 7504 find 0 bolts. At 2000 px they find 106 and 43, and the
 | 5c | Confidence tiers (A lattice / C borrowed); `tiers` filled; per-tier margins in the worker. **Tier B (hole ellipse) dropped, approved by the human 2026-11-09.** | Every distance has a tier; worker test checks per-tier margins. IMG_7501 stays `insufficient_bolts` (no distances, existing hint), which replaces the original "IMG_7501 gives a scale for every panel". |
 | 5d | **Panel angle (added 2026-11-09, plan below, not yet approved).** Estimate the wall angle under each selected hold from the photo and send it to the LLM. Step 1 is a feasibility measurement, step 2 the plumbing. | Step 1: angle estimates compared with measurements.md on all six reference walls, go/no-go agreed with the human. Step 2: each selected hold carries `wall_angle_deg` and the prompt explains how to use it; worker test checks the payload. |
 | 6 | Tape-measured hold pairs re-calibrate the centroid allowance. **2026-11-13: done, 5 cm confirmed by data (see "Slice 6"); bad measurements deleted.** | Human measurements exist in measurements.md (now `pairs.json` / `epic_wall_2_measured.txt`); the allowance is replaced or confirmed and the spec says which. |
-| 5e | **Approved by the human 2026-11-13; after slice 6, before slice 7.** Real-phone angle check by the human on 2026-11-14. wall-angle improvements from the 5d handover. (1) Group bolts by their own wall direction before assigning holds (fixes the smooth-seam miss, epic_wall P14). (2) A confidence per hold: no angle when the evidence is thin or the two mirror answers are equally supported. Plus a synthetic-wall test of the vote. Before slice 7 so the speed work times the final pipeline. | Needs the human's go-ahead and the real-phone angle check. |
+| 5e | **Approved by the human 2026-11-13; after slice 6, before slice 7.** Wall-angle improvements from the 5d handover. (1) Group bolts by their own wall direction before assigning holds (fixes the smooth-seam miss, epic_wall P14). (2) A confidence per hold: no angle when the evidence is thin or the two mirror answers are equally supported. Plus a synthetic-wall test of the vote. (3) **Added 2026-11-19:** `backend/eval_field.py`, a dev script that replays the 15 field captures (photo + recorded gravity) through the current pipeline and scores them against each `truth.json`, as the regression check for 5e, 6b, 8 and 7. The real-phone angle check is done (2026-11-18, see "Field test"). | P14 within 10° without regressing the other 18 panels in `eval_angle.py`; the confidence rule is tested; the field replay shows no hold angle or distance getting worse than its baseline in "Field test" (volume holds excepted, they are 6b's). |
+| 6b | **Volumes (added 2026-11-19, plan in "Slice 6b: volumes").** Spot holds that sit on a volume, and estimate the volume face's own angle by a separate method from the wall's (the bolt grid gives the wall behind the volume, not the face). | Every picked hold has an on-volume yes/no; the volume face angle meets a bar agreed with the human after the step 1 feasibility check (or is left out, with the hold flagged); the LLM gets the wall angle and the volume face angle separately; worker test checks the payload. |
+| 8 | **Volume fixes and more coaching information (added 2026-11-19, plan in "Slice 8").** Part 1: fix the remaining volume problems, first the distance error for holds that stand off the wall (field capture `173933`: +19%). Part 2: send the LLM (1) hold positions in cm on the wall and each move's up/across parts, (3) an on-volume flag plus the volume's size, (4) a note when a move crosses a change of wall angle, (5) the climber's height and ape index from settings, (6) hold colour, used to suggest the route's holds and nearby footholds. Item 2 of the 2026-11-19 list (hold size) is not in scope. | Part 1: `173933`'s pair is inside its tier's 6%/14% part of the margin (not only the 5 cm allowance), with no other field capture worse. Part 2: each item reaches the LLM payload and the prompt explains it; worker tests check each; architecture.md section 5 rows ticked. |
 | 7 | Performance: vectorise the pure-Python loops in `scale.fit_lattice` and `bolts`, and shrink the N×N `distances_units` payload (about 300 KB for 200 holds). Planned on 2026-10-19, after the human deferred optimisation. | `/detect` latency target met on a 12 MP photo (target **4–5 s**, agreed 2026-10-19 — faster if it costs little; it is about 7–8 s today); accuracy numbers unchanged. |
-| End | Wrap-up, run once the last slice above is done (slice 7 today; if slices are added, after whichever is last). Update `docs/architecture.md` and `docs/testing.md` for the whole feature, plus the handover entry and `decisions.md` (acceptance criterion 7). Agreed with the human 2026-11-09: no docs other than this spec are edited before this step. | `architecture.md` and `testing.md` describe the finished feature in plain language, and the human has reviewed them. |
+| End | Wrap-up, run once the last slice is done. **Order agreed 2026-11-19: 5e → 6b → 8 → 7 → End**, so slice 7 times the final pipeline. Update `docs/architecture.md` and `docs/testing.md` for the whole feature, plus the handover entry and `decisions.md` (acceptance criterion 7). Agreed with the human 2026-11-09: no docs other than this spec are edited before this step. | `architecture.md` and `testing.md` describe the finished feature in plain language, and the human has reviewed them. |
 
 ## Decisions
 - Approach:
@@ -225,7 +233,7 @@ At 1500 px, 7500 and 7504 find 0 bolts. At 2000 px they find 106 and 43, and the
 - **Tier C as "borrowed from a neighbouring panel" is the existing field fallback in `metric_at`** (nearest bolts, whichever panel), now labelled and given its own margin, rather than a separate mechanism.
 
 ## Accuracy results (epic_wall, 2026-11-09)
-`cd backend && uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/epic_wall.jpg --accuracy` (and `--tape 26`). 295 bolts found, 290 fitted, 4 patches, wall length 18.96 units (about 4.9 m at 26 cm).
+`cd backend && uv run python eval_scale.py ../mobile/ML-Rock-Climbing-App/assets/known_measurements/reference/epic_wall.jpg --accuracy` (and `--tape 26`). 295 bolts found, 290 fitted, 4 patches, wall length 18.96 units (about 4.9 m at 26 cm).
 
 - **Bolt grid:** in-panel reach-range p95 **1.8%** (n=592); cross-seam p95 **0.9%** (n=1652); all held-out pairs 1.3%. As good as the earlier photos.
 - **Panel segmentation:** 3 panels segmented against the 10 drawn, purity 45% (bar from 5b: 90%), coverage 97%. The plywood grid runs straight across the seams, so panels at 25° and 31° read as one surface. Distances are unaffected here (field-only gives the same 1.9%). Accepted as a known limit; no fix planned.
@@ -356,3 +364,71 @@ IMG_7552's four edges at 25 cm read −6% to +19%; their endpoints are corners r
 3. **Big holds can exceed the allowance on their own** (+10.3 cm). This is one case, so there is no change now. If more data shows the same, the fix would be an allowance scaled by hold size (for example, a fraction of the hold's radius) rather than a flat 5 cm.
 
 **Open:** none for slice 6.
+
+## Field test (2026-11-18, real phone)
+
+**Data:** `backend/field_captures/` (15 captures, one gym, one iPhone on iOS 26.6.1, each through the app with the phone's tilt recorded). Ground truth is each folder's `truth.json`. The app's bolt spacing was 20 cm for the first 11 captures; every cm below is recomputed at the wall's real 25 cm (see the folder's README).
+
+**Distances** (tape is bolt to bolt; the app measures hold centre to hold centre):
+
+| Capture | Tape | App | Error | Tier · margin | Inside? |
+|---|---|---|---|---|---|
+| `174106` / `174142` / `174346` / `174447` (same pair, stepping back) | 76 | 79.8 / 78.4 / 75.8 / 78.2 | +5 / +3 / 0 / +3% | A · 9.5–9.8 | yes |
+| `173610` across a seam | 155 | 154.7 | 0% | C · 26.7 | yes |
+| `174933` slab, lower hold on a volume | 162 | 168.6 | +4% | C · 28.6 | yes |
+| `172816` across a fold, 21° → 54° | 135 | 125.2 | −7% | C · 22.5 | yes |
+| `171333` 1° wall | ~180 (tester: "about") | 195.4 | +9% | C · 32.4 | yes |
+| `173933` **both holds on volumes** | ~80 (tester: "about") | 95.4 | **+19%** | C · 18.4 | yes, by 3 cm |
+
+- All 9 independent pairs are inside their `margin_cm`. `174741` is left out: its tape value was taken from the app.
+- Repeatability: one pair photographed at 16°, 21° and 26° phone tilt (`173154`, `173256`, `173344`) reads 69.6, 69.3, 69.6 cm.
+- The margins are **not** changed: one gym, one phone, 9 pairs.
+
+**Angles:** 29 hold angles against the tester's values (the hold on a volume left out): median error about **1.2°**, worst **5.2°**, all inside the 8° sensor margin. Includes a 54° overhang read as 54.5°, and phone tilt from −2° to 26°. The iOS sensor path is confirmed. Not yet tested: Android, a real slab (only −2° and 0° here, so the slab/overhang mix-up is still open), a second gym.
+
+**Problems found:**
+1. **Holds on volumes.** A hold on a volume stands 20–30 cm off the wall. Its distance is measured as if it were on the wall (`173933`, +19%), and its angle is the wall behind the volume, not the volume face (`174933`: face +6°, app −2.9°). → slices 6b and 8.
+2. **Speed:** `/detect` took 6.6–15.3 s from the phone (about 11 s typical) against the 4–5 s target. → slice 7.
+3. **Photo size:** the phone sends 1776×3840 (6.8 MP, cropped to the screen's shape) with no EXIF, so the focal length falls back to 26 mm on a cropped frame (probably about 12% short). Angles are still good. To check in slice 7 or 6b; the "Image resolution" section assumes 12 MP.
+4. **`wall_length_cm` is the wall in the photo, not the wall:** the same wall gave 10.7 to 20.5 grid units as the tester stepped back. Acceptance criterion 1 needs a decision before End.
+
+## Slice 6b: volumes (planned 2026-11-19, awaiting approval of details)
+
+**Why:** field captures `173933` and `174933` (see "Field test"). The wall angle under a hold on a volume is not the angle the climber pulls on, and the human wants the volume face's angle too, derived a separate way.
+
+**Step 1: spot holds on volumes.** YOLO already returns `VOLUME` polygons. A picked hold whose outline sits mostly inside a volume's outline is "on a volume". Ground truth: the field overlays (holds on volumes in `173933`, `174933`).
+
+**Step 2: volume face angle, feasibility first (no payload change).** Candidate methods, to be compared and agreed with the human before any is built:
+- bolt holes on the volume face, where it has its own, fitted with the existing lattice code;
+- the volume's outline shape (its edges and corners as a known solid against the wall plane);
+- volume angle typed in by the user (fallback; friction).
+
+Proposed go/no-go like 5d: median error ≤ 5° on the volume faces with known angles. **Needs data:** a few captures of volumes with each face's angle measured (only `174933` has one today; `173933`'s 12°/20° needs confirming as volume face or wall).
+
+**Step 3: plumbing.** Each hold gets `on_volume`, and `volume_angle_deg` with its own margin when the method passes; the prompt explains the difference from `wall_angle_deg`.
+
+**Feasibility, option B first try (2026-11-19, scratch scripts, field capture `173933`):**
+- **Depth model:** Depth Anything V2 Small (Apache-2.0), CPU, 0.4–0.65 s per volume cut-out, about 1 s for the whole photo.
+- **Wall plane from the bolt grid works:** each panel's homography split into the wall's exact position (focal length known) gives +16.4° and +12.5°, against the app's 16.1–16.4° and 12.6°, with the grid's two axes equal within 0.2% and the wall about 3.1 m away. Unlike the current per-bolt method, this split has no mirror twin, so it may also help the slab/overhang mix-up (to check in 5e).
+- **The model sees volumes clearly** (faces and ridges visible in its depth map), but **its scale cannot be set from the wall:** fitted on the wall around a volume, the volume comes out 2–3 cm deep (real: 20 cm or more); fitted on the whole photo, the wall fit is off by 7–12 cm and volumes land behind the wall. So "depth model + wall" gives no usable face angle here.
+- **YOLO misses volumes:** `173933`'s left pyramid is not a VOLUME detection, and `174933` has none, so "hold on a volume" by polygon would miss both field-test volume holds. Any 6b method needs better volume detection (lower `VOLUME` confidence floor, retraining, or raised regions in a depth map).
+- Next options: a surface-normal model (gives face direction directly, no scale needed; corrected by the known wall direction), or option A (second photo). Human to choose.
+
+**Decision (human, 2026-11-19):** a volume face is described by its steepness **and** the direction it faces (left / right / up / down), not steepness alone, because a sideways face climbs like a sidepull. Both come from the same face direction the method computes, so this adds no infrastructure.
+
+## Slice 8: volume fixes and more coaching information (planned 2026-11-19)
+
+**Part 1, volume fixes.** Start with the distance between holds that stand off the wall (`173933`, +19%), then anything left open by 6b. Approach to be proposed after 6b, using what 6b learns about the volume's geometry.
+
+**Part 2, more information for the LLM** (numbering from the 2026-11-19 list; item 2, hold size, is out of scope):
+1. **Hold positions in cm on the wall** (height above the lowest bolts, sideways offset), from the panel homographies and the gravity reading, plus each move's up/across parts. Today the LLM gets photo fractions, and the photo is 2.16× taller than wide.
+3. **On a volume** (from 6b) and the volume's size in cm.
+4. **Angle change along a move**, e.g. "from 21° onto 54°" (`172816`).
+5. **Climber height and ape index**, entered in the settings panel (new user input, approved by the human 2026-11-19).
+6. **Hold colour**, from the photo's pixels inside each hold's outline: suggest the route's other holds when picking, and send nearby footholds of the route's colour.
+
+Each item is its own step with a worker test; the order inside the slice is proposed when it starts.
+
+**Note (human, 2026-11-19): plan a slice 9 with the human to cut down `/detect` times**, once slice 8 is done. The field test measured 6.6–15.3 s from the phone (see "Field test"), and 6b and 8 add work per photo. Slice 9 is planned together with the human, not drafted alone; how it splits from slice 7 (speed) is decided then.
+
+**Decisions (human, 2026-11-19):** volume work is a new slice 6b (slice 6 is taken); slice 8 includes items 1, 3, 4, 5 and 6; order 5e → 6b → 8 → 7 → End. **architecture.md gets a new section 5 now** ("What the coaching AI is told", a checklist table), an exception to the 2026-11-09 rule that no doc other than this spec changes before End. The human fills in its not-yet-built rows; it is the plan for the rest of the branch, and each slice ticks its rows.

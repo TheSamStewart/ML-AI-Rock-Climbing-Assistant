@@ -1,0 +1,38 @@
+{
+  "_help": "Fill by hand. Angles in degrees from vertical (+ overhang, - slab). Distances in cm along the wall surface. Hold ids are the numbers on overlay_<n>.jpg. measured_between: 'bolt' (bolt hole to bolt hole), 'centre' (middle of hold to middle of hold) or 'edge'. Leave null if unknown.",
+  "bolt_spacing_cm_measured": 25,
+  "bolt_pattern": "square with centre bolt",
+  "wall_angles": [
+    {
+      "where": "whole wall (both picked holds)",
+      "hold_ids": [
+        2,
+        21
+      ],
+      "angle_deg": 0,
+      "how_measured": "tester's measurement (method not stated)",
+      "source": "note"
+    }
+  ],
+  "tape_pairs": [
+    {
+      "from_hold_id": 2,
+      "to_hold_id": 21,
+      "cm": 101.4,
+      "measured_between": "bolt",
+      "notes": "tester: app distance 'exactly correct', so tape = app value 101.4 cm",
+      "source": "confirmed by tester 2026-11-18 from note 'distance exactly correct'"
+    }
+  ],
+  "wall_length_cm": null,
+  "camera": {
+    "distance_from_wall_m": null,
+    "height_m": null,
+    "held": "portrait (sensor roll within 3 deg)",
+    "notes": "vertical wall"
+  },
+  "conditions": "",
+  "notes": "Filled from the in-app note: 'Wall angle 0,distance exactly correct '",
+  "bolt_spacing_source": "known value for this wall: 25 cm (tester, 2026-11-18)",
+  "_filled_by": "agent, 2026-11-18, from saves.json notes; all assumptions confirmed by the tester the same day"
+}

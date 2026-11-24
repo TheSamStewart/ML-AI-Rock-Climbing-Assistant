@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:47:43+00:00",
+    "selected_hold_ids": [
+      2,
+      21
+    ],
+    "bolt_spacing_cm": 25.0,
+    "notes": "Wall angle 0,distance exactly correct ",
+    "holds": [
+      {
+        "id": 2,
+        "class_name": "HOLD",
+        "x": 0.5890743860904153,
+        "y": 0.628589449663024,
+        "angle_deg": -1.1
+      },
+      {
+        "id": 21,
+        "class_name": "HOLD",
+        "x": 0.4835703709628874,
+        "y": 0.43261216055537083,
+        "angle_deg": -1.5
+      }
+    ],
+    "legs": [
+      {
+        "from": 2,
+        "to": 21,
+        "units": 4.057,
+        "cm": 101.4,
+        "tier": "A",
+        "margin_cm": 11.1
+      }
+    ],
+    "wall_length_cm": 388.3,
+    "overlay": "overlay_1.jpg"
+  }
+]
