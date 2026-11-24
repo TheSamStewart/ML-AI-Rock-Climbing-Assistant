@@ -1,6 +1,6 @@
 # Surface-normal network experiment (DEV ONLY, not used by the API)
 
-Slice 6b, 2026-11-20. Can a surface-normal network (Metric3D v2 ViT-Small, BSD-2) give a
+Slice 11, 2026-11-20. Can a surface-normal network (Metric3D v2 ViT-Small, BSD-2) give a
 pyramid volume's depth from ONE photo? See the handover entry of 2026-11-20 (later) for
 the results so far.
 

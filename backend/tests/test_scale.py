@@ -1,8 +1,8 @@
-"""Slice 3 tests for scale.py: lattice fit, metric field, segment distances,
+"""Slice 4 tests for scale.py: lattice fit, metric field, segment distances,
 wall length, index_lattice and compute_scale.
 
 Written from the spec (docs/features/wall_size_hold_distance.md, Decisions ->
-"Slice 3 lattice + distances") only, not from the implementation.
+"Slice 4 lattice + distances") only, not from the implementation.
 
 Ground truth: synthetic centred-square lattices built in grid units (corners
 (i, j) plus centres (i + 0.5, j + 0.5); 1 unit = one bolt_spacing_cm), mapped
@@ -417,7 +417,7 @@ def test_interior_region_with_all_centre_bolts_hidden_sqrt2_ambiguity(name, extr
     _check_region_without_centres(name, box, extra_hidden)
 
 
-# Slice 5a done-when: centre-less regions of ANY size measure at p95 <= 7%
+# Slice 6 done-when: centre-less regions of ANY size measure at p95 <= 7%
 # (DEGRADED_P95). Made must-pass by the human on 2026-10-19 ("being 40% off
 # is unacceptable"); was xfail before 5a. Boxes are (x0, x1, y0, y1) in
 # squares on the 10x14 wall; image y grows downwards, so y = NY is the bottom
@@ -564,7 +564,7 @@ SPURIOUS_MIN_UNITS = 0.45
 def test_a_few_spurious_points_do_not_break_distances(hidden):
     # 1% off-lattice false positives (3 points on a 305-bolt wall). They sit
     # >= 0.45 units (~0.64 diagonal pitches) from every visible bolt, so they
-    # would survive slice 2's "NN >= 0.7x local median" filter. The spec's
+    # would survive slice 3's "NN >= 0.7x local median" filter. The spec's
     # outlier drop (metric > 35% off the local median) exists for exactly
     # this; one bad point must not spoil the whole wall's p95.
     fwd = AFFINE["foreshortened_rotated"]
@@ -835,7 +835,7 @@ def test_compute_scale_ok_shape_and_rounding():
     assert result["bolt_count"] == len(bolts)
     d = result["distances_units"]
     n = len(dets)
-    # Slice 5c: tiers is N rows of N characters, "A" or "C" ("B" is not produced).
+    # Slice 8: tiers is N rows of N characters, "A" or "C" ("B" is not produced).
     assert len(result["tiers"]) == n
     assert all(isinstance(r, str) and len(r) == n and set(r) <= {"A", "C"} for r in result["tiers"])
     assert len(d) == n and all(len(row) == n for row in d)
@@ -994,9 +994,9 @@ def test_select_distances_from_compute_scale_round_trip():
     assert sub[0][0] == sub[1][1] == 0
 
 
-# --- tiers (slice 5c) ----------------------------------------------------------
+# --- tiers (slice 8) ----------------------------------------------------------
 #
-# Spec "Slice 5c: confidence tiers": a distance is "A" when every one of its 16
+# Spec "Slice 8: confidence tiers": a distance is "A" when every one of its 16
 # sample points is within 1.5 nearest-bolt spacings (about 1 grid unit) of a
 # fitted bolt, "C" otherwise (part of its scale is borrowed from further away).
 # `tiers` is N rows of N chars. On a full lattice no point is more than 0.5
@@ -1072,7 +1072,7 @@ def test_tiers_are_symmetric_and_follow_detections_order():
 
 
 def test_tiers_do_not_change_distances():
-    # Tiers only label; the distances are the slice 5b ones (re-derived here
+    # Tiers only label; the distances are the slice 7 ones (re-derived here
     # from segment_lengths like test_compute_scale_matches_segment_lengths).
     fwd, _, px = _wall()
     bolts = _bolts_from_px(px, IMAGE_SIZE)
@@ -1097,7 +1097,7 @@ def test_tiers_empty_detections_give_empty_tiers_or_none():
     assert result["tiers"] in ([], None)
 
 
-# --- select_tiers (slice 5c) ---------------------------------------------------
+# --- select_tiers (slice 8) ---------------------------------------------------
 # conftest's sample_scale tiers: ["AACA", "AACC", "CCAA", "ACAA"]; the C pairs
 # are (0,2), (1,2), (1,3).
 
@@ -1160,9 +1160,9 @@ def test_select_tiers_from_compute_scale_round_trip():
 
 # --- reference photos (slow) ---------------------------------------------------
 #
-# Spec slice 3 done-when: held-out in-panel bolt pairs p95 <= 7%. Ground truth
+# Spec slice 4 done-when: held-out in-panel bolt pairs p95 <= 7%. Ground truth
 # is index_lattice's integer coordinates within one connected patch (patches
-# stand in for panels until slice 5). "Leave-own-J-out" (the spec's headline):
+# stand in for panels until slices 6–8). "Leave-own-J-out" (the spec's headline):
 # fit on all bolts, then drop the held-out bolts' own J, which mirrors
 # measuring between holds. Only pairs >= 2 units apart are scored, so centroid
 # jitter on the ~1 unit pitch doesn't dominate.
@@ -1182,7 +1182,7 @@ def _ref_marks(name):
 
 
 def _subset(lat, mask):
-    # Spec (slice 5b contract): Lattice.take(mask) subsets every per-bolt field,
+    # Spec (slice 7 contract): Lattice.take(mask) subsets every per-bolt field,
     # including panel and grid, and the subset's panel homographies are fitted
     # from the bolts it keeps, so leave-own-J-out stays honest.
     return lat.take(np.asarray(mask, bool))
@@ -1242,7 +1242,7 @@ def test_reference_photo_compute_scale_is_ok(name):
 # 1.5-12.5 grid units (30-250 cm at 20 cm). Leave-own-J-out with a 5-fold
 # partition (each bolt held out once), as in the spec's accuracy tables; the
 # fold draw is pooled over REGRESSION_SEEDS partitions, because one draw moves
-# p95 by ~0.3 points (IMG_7502: 1.6-3.1% per draw since slice 5b).
+# p95 by ~0.3 points (IMG_7502: 1.6-3.1% per draw since slice 7).
 
 REGRESSION_SEEDS = 8
 REGRESSION_FOLDS = 5
@@ -1329,13 +1329,13 @@ def _leave_own_j_out(lat, ia, ib, true, fold_key=None):
 # --- reference photos must not regress (slow) -----------------------------------
 #
 # Guards each outlined photo's in-panel reach-range p95 against a baseline
-# (slice 5a done-when: within 0.5 points). Since slice 5b the pairs and their
+# (slice 6 done-when: within 0.5 points). Since slice 7 the pairs and their
 # true distances come from a FROZEN bolt index (tests/data/
 # reference_bolt_index.json: every fitted bolt's px position, index_lattice
 # component and coordinates when it was frozen), not from the live fit's own
-# index_lattice (human-approved, slice 5a Q3). So:
+# index_lattice (human-approved, slice 6 Q3). So:
 # * the scored pairs are fixed: a fit that links more of the wall doesn't add
-#   new, harder pairs (the slice 5a IMG_7503 artefact), and one that links less
+#   new, harder pairs (the slice 6 IMG_7503 artefact), and one that links less
 #   doesn't quietly drop the hard ones;
 # * live bolts are matched to frozen ones by position (mutual nearest within
 #   FROZEN_MATCH_SPACINGS of the frozen median nearest-bolt distance), so a few
@@ -1344,16 +1344,16 @@ def _leave_own_j_out(lat, ia, ib, true, fold_key=None):
 #   same partners every run.
 # Too few frozen bolts matched (FROZEN_MIN_MATCHED) means detection or the fit
 # changed what it finds, and the guard fails rather than score a different set.
-# The live ground truth is checked separately (absolute 7% bar, slice 5b tests
+# The live ground truth is checked separately (absolute 7% bar, slice 7 tests
 # in test_scale_panels.py).
 #
 # Re-freeze only when the ground truth itself is meant to change, with the
 # human's approval: `cd backend && uv run python tests/freeze_reference_index.py`
 # rewrites the JSON and prints the new REGRESSION_BASELINE_P95. Frozen
-# 2026-10-20 on the slice 5b fit (ground truth = panel sites). The baselines
-# are this guard's own numbers at that point; the spec's slice 5b table (one
+# 2026-10-20 on the slice 7 fit (ground truth = panel sites). The baselines
+# are this guard's own numbers at that point; the spec's slice 7 table (one
 # eval_scale draw, live pairs) gives 1.1 / 1.9 / 2.6 / 3.1%.
-# IMG_7502 is guarded again: with the slice 5b ground truth its per-draw p95
+# IMG_7502 is guarded again: with the slice 7 ground truth its per-draw p95
 # spread is 1.6-3.1% (was 9.8-17.7%), and the pooled number is steadier still.
 
 FROZEN_INDEX_PATH = Path(__file__).resolve().parent / "data" / "reference_bolt_index.json"

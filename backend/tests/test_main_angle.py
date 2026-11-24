@@ -1,4 +1,4 @@
-"""Slice 5d: /detect gravity field, scale angle fields, and /analysis angle plumbing."""
+"""Slice 9: /detect gravity field, scale angle fields, and /analysis angle plumbing."""
 import json
 import math
 from pathlib import Path

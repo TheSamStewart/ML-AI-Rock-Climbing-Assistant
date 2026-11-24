@@ -41,7 +41,7 @@ ROUTE = {
         [1.5, 0.0, 1.23456],
         [2.25, 1.23456, 0.0],
     ],
-    # Slice 5c: picked sub-matrix of tiers, N strings of N chars, pick order.
+    # Slice 8: picked sub-matrix of tiers, N strings of N chars, pick order.
     # Pairs: (7,3) A, (7,5) C, (3,5) A.
     "tiers": ["AAC", "AAA", "CAA"],
     "wall_length_units": 20.0,
@@ -61,7 +61,7 @@ PCT_BY_TIER = {"A": 6, "C": 14}
 
 
 def _margin(cm, tier="A"):
-    # Spec (Outputs, slice 5c): margin_cm = cm x margin_pct_by_tier[tier]/100
+    # Spec (Outputs, slice 8): margin_cm = cm x margin_pct_by_tier[tier]/100
     # + centroid_allowance_cm (5), 1 decimal, from the already-rounded cm.
     return round(cm * PCT_BY_TIER[tier] / 100 + 5, 1)
 
@@ -156,7 +156,7 @@ def test_route_data_cm_is_units_times_bolt_spacing(bolt_spacing_cm):
     ],
 )
 def test_route_data_wall_length_cm_rounded_to_one_decimal(wall_length_units, bolt_spacing_cm, expected):
-    # Human decision (handover, slice 1 Q): wall_length_cm = round(units * spacing, 1),
+    # Human decision (handover, slice 2 Q): wall_length_cm = round(units * spacing, 1),
     # the same rule as distances_cm.
     data = build_route_data(_route(wall_length_units=wall_length_units, bolt_spacing_cm=bolt_spacing_cm))
 
@@ -195,9 +195,9 @@ def test_route_data_wall_length_none_when_units_none():
 
 
 def test_derived_margin_constants():
-    # Spec, Decisions -> Slice 4 margin: pooled reach-range p95 5.2% rounded up to 6
+    # Spec, Decisions -> Slice 5 margin: pooled reach-range p95 5.2% rounded up to 6
     # (the wall length keeps it); centroid allowance starts at 5 cm.
-    # Slice 5c: per-tier margins A 6%, C 14%.
+    # Slice 8: per-tier margins A 6%, C 14%.
     assert DISTANCE_MARGIN_PCT == 6
     assert CENTROID_ALLOWANCE_CM == 5
     assert DISTANCE_MARGIN_PCT_BY_TIER == {"A": 6, "C": 14}
@@ -269,7 +269,7 @@ def test_route_data_tier_c_margin_is_wider_than_tier_a_for_same_distance():
 
 @pytest.mark.parametrize("tiers", [None, "missing"])
 def test_route_data_route_without_tiers_is_treated_as_tier_a(tiers):
-    # A scale cached before slice 5c has no tiers.
+    # A scale cached before slice 8 has no tiers.
     route = _route()
     if tiers is None:
         route["tiers"] = None
@@ -330,7 +330,7 @@ def test_system_prompt_explains_distances_and_margin():
     assert "distances_cm" in prompt
     assert "wall_length_cm" in prompt
     assert "margin" in prompt
-    assert "tier" in prompt  # slice 5c: the prompt explains the confidence tiers
+    assert "tier" in prompt  # slice 8: the prompt explains the confidence tiers
     assert "reachable" in prompt
 
 
@@ -339,10 +339,10 @@ def test_system_prompt_uses_margin_cm_as_benefit_of_doubt_threshold():
 
     assert "margin_cm" in prompt
     assert "benefit of the doubt" in prompt
-    assert "10%" not in prompt  # the slice 1 placeholder is gone
+    assert "10%" not in prompt  # the slice 2 placeholder is gone
 
 
-# --- wall angle (slice 5d) ---
+# --- wall angle (slice 9) ---
 
 PRE_5D_KEYS = {"holds", "distances_cm", "wall_length_cm", "accuracy"}
 

@@ -1,4 +1,4 @@
-"""Slice 5d: pure maths of angle.py, written from the spec's Contracts only.
+"""Slice 9: pure maths of angle.py, written from the spec's Contracts only.
 
 Frames
 - Camera: x right, y down, z forward (pinhole, principal point at the image centre).

@@ -99,7 +99,7 @@ def accuracy(found: list[dict], width: int, height: int, refit: bool = False,
     true length in grid units; "cross"/"cross_truth" the same for pairs in two
     different outlines whose grids share one frame (index_lattice), measured
     through the seam. "field" is the in-panel error of the interpolated field
-    alone (no panel homographies, the slice 3-5a method), for comparison."""
+    alone (no panel homographies, the slices 4–6 method), for comparison."""
     xy = np.array([[b["x"] * width, b["y"] * height] for b in found]).reshape(-1, 2)
     full = scale.fit_lattice(xy)
     coords, component = scale.index_lattice(full)

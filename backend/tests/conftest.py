@@ -79,7 +79,7 @@ def sample_scale():
             [2.0, 4.0, 0.0, 6.0],
             [3.0, 5.0, 6.0, 0.0],
         ],
-        # Slice 5c: N rows of N chars, "A"/"C" per pair. Symmetric, "A" on the
+        # Slice 8: N rows of N chars, "A"/"C" per pair. Symmetric, "A" on the
         # diagonal. C pairs: (0,2), (1,2), (1,3); the rest are A.
         "tiers": ["AACA", "AACC", "CCAA", "ACAA"],
     }

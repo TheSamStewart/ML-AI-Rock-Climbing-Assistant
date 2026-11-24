@@ -22,6 +22,15 @@ ctrl + k then v to preview in vs code
 - [Coaching output as JSON steps](#coaching-output-as-json-steps-workerpy-analysisresulttsx) — Status: Accepted · Date: 2026-10-01
 - [Camera mode slider](#camera-mode-slider-modeslidertsx-customcameratsx) — Status: Accepted · Date: 2026-10-09
 
+**Wall size and hold distance** (feature spec: `docs/features/wall_size_hold_distance.md`, which has the full detail)
+- [Bolt holes as a ruler](#bolt-holes-as-a-ruler) — Status: Accepted · Date: 2026-10-16
+- [Full-resolution photos only](#full-resolution-photos-only) — Status: Accepted · Date: 2026-10-19
+- [Measure each flat panel separately](#measure-each-flat-panel-separately) — Status: Accepted · Date: 2026-10-20
+- [Honest error margins for the coaching AI](#honest-error-margins-for-the-coaching-ai) — Status: Accepted · Date: 2026-11-13
+- [Wall angle from the bolt grid and the phone's tilt](#wall-angle-from-the-bolt-grid-and-the-phones-tilt) — Status: Accepted · Date: 2026-11-09
+- [Volumes: say nothing unless sure](#volumes-say-nothing-unless-sure) — Status: Accepted · Date: 2026-11-20
+- [Keep predictions on the server for now](#keep-predictions-on-the-server-for-now) — Status: Accepted · Date: 2026-11-24
+
 ## Stack Decisions
 
 ## Why Async Design
@@ -234,3 +243,109 @@ Why Chosen:
 - Modes live in one `CAMERA_MODES` array, so adding "Coaching Analysis" etc. is a one-line change.
 - Each mode can take an optional `style` in `CAMERA_MODES` (colour, border, opacity etc.) applied on top of the default circle. Size and position stay controlled by the carousel so every icon still centres in the shutter ring.
 - The pan uses `activeOffsetX` so a tap on the shutter isn't mistaken for a swipe.
+
+## Wall size and hold distance
+
+These decisions come from the wall size / hold distance feature. The spec (`docs/features/wall_size_hold_distance.md`) has the numbers behind each one; `docs/features/handover.md` has the slice-by-slice history.
+
+## Bolt holes as a ruler
+
+Status: Accepted · Date: 2026-10-16
+
+Explanation:
+
+Climbing walls are drilled with a regular grid of bolt holes: a square of known size (set by the user, 20 cm by default; 25 cm at the test gym) with an extra bolt in the middle of each square. `bolts.py` finds the holes in the photo, and `scale.py` fits the grid. Because the real spacing is known, the grid's size and shape in the photo tell us how many pixels make a centimetre at every point on the wall, even where the wall is angled or seen in perspective.
+
+Why Chosen:
+
+- It needs nothing from the user except the bolt spacing, set once in Settings.
+- It works across angled panels, unlike one scale for the whole photo.
+- Rejected: training YOLO to find bolt holes (hundreds of tiny holes to label first); tapping two points of known distance (extra friction, and it only gives one scale).
+- The backend works in "bolt spacings", not cm. The app and the worker multiply by the user's spacing, so changing the setting rescales every distance without re-running detection.
+
+## Full-resolution photos only
+
+Status: Accepted · Date: 2026-10-19
+
+Explanation:
+
+Bolt holes are about 10 px across in a phone photo. Tested on the reference photos: below about 3200 px on the long side (about 6 px per cm of wall), bolts drop out unevenly and the wall length can halve. YOLO still runs on a 1024 px copy, but bolt detection gets the full photo.
+
+Why Chosen:
+
+The app pins the camera's largest picture size and never resizes or recompresses uploads. The cost is a bigger upload (3–6 MB), which matters on poor gym signal. It's also why moving predictions onto the phone wouldn't remove the upload (see the last entry).
+
+## Measure each flat panel separately
+
+Status: Accepted · Date: 2026-10-20
+
+Explanation:
+
+Real walls are made of flat panels at different angles. `scale.py` groups bolts into panels by which ones fit one flat grid, and measures each panel with its own exact perspective map (a homography). A distance that crosses a fold is measured piece by piece, each part on its own panel.
+
+There is also a "√2 rule": where holds hide every middle bolt in an area, the remaining corner bolts look like the normal grid at 1.41× the size, so distances there came out about 30% short. The app now spots a group of bolts that is exactly √2 coarser than the group next to it and re-reads it.
+
+Why Chosen:
+
+- Panel by panel took the worst reference photo from 12.6% to 1.7% error (95th percentile), and every photo is now under the 7% target.
+- Growing one panel outwards from a seed was tried first. It crept over folds and swallowed whole walls.
+
+## Honest error margins for the coaching AI
+
+Status: Accepted · Date: 2026-11-13 (first set 2026-10-19)
+
+Explanation:
+
+Every distance the coaching AI gets carries a margin, and the AI is told to give the climber the benefit of the doubt within it. Margin = a percentage of the distance + 5 cm. The 5 cm covers the hold's centre not being exactly where the climber grips.
+
+- **Tier A, 6%:** the bolt grid is visible all along the distance.
+- **Tier C, 14%:** part of the distance has no bolts nearby (hidden behind holds or volumes), so its scale is borrowed from further away.
+
+Why Chosen:
+
+- The numbers come from data, not guesses. 6% is the 95th-percentile error on held-out bolt pairs across the reference photos; 14% is the same measured with holes cut in the grid; 5 cm was confirmed with a real tape measure on 12 hold pairs (2026-11-13).
+- Each pair's margin is precomputed in cm, so the AI doesn't do arithmetic.
+- Using hole size as a backup ruler (an old "tier B") was dropped: holes in one photo varied nearly 2× in apparent size.
+
+## Wall angle from the bolt grid and the phone's tilt
+
+Status: Accepted · Date: 2026-11-09
+
+Explanation:
+
+The bolt grid is made of squares, so how squashed it looks in the photo tells us how the wall is tilted relative to the camera. Adding the phone's tilt at the moment of the photo (its accelerometer, via `expo-sensors`) turns that into degrees from vertical: + for an overhang, − for a slab. Each hold gets the angle of the wall right around it, shown as `≈N°` in PhotoPreview and sent to the AI with a margin (8° with the sensor, 15° without).
+
+Why Chosen:
+
+- On a real phone (2026-11-18): median error 1.2°, worst 5.2° over 29 holds.
+- Per hold rather than per panel, because the app can't always tell where one panel ends.
+- Known limit: one photo can't tell a slab from an overhang, so ties go to overhang. Slice 12 is testing a fix on slab photos.
+
+## Volumes: say nothing unless sure
+
+Status: Accepted · Date: 2026-11-20
+
+Explanation:
+
+A volume is a big shape bolted onto the wall, and a hold on it is angled differently from the wall behind it. `volume.py` can fit boxes, wedges and pyramids from a volume's outline, but one photo can't see how far a pyramid's tip sticks out. Get that wrong and the face angle is off by 15° or more, with no warning.
+
+Why Chosen:
+
+- A confident wrong angle is worse coaching than none, so a volume is only reported when the fit passes a strict check. Otherwise the AI and the user get nothing about it.
+- A pyramid whose tip position had to be guessed is never trusted.
+- The likely fix for pyramids is a second photo from the side. It's being tested before any app change.
+
+## Keep predictions on the server for now
+
+Status: Accepted · Date: 2026-11-24
+
+Explanation:
+
+Running hold detection on the phone instead of the server was considered, to cut the 7–15 s wait and allow offline use.
+
+Why Chosen:
+
+- YOLO is only about a quarter of the wait. Bolt finding and the grid fit are the rest, and they need the full photo on the server anyway.
+- The model is the medium size (27M parameters at 1024 px), too heavy for cheap phones.
+- Coaching needs the Claude API, so the app needs signal regardless.
+- Speeding up the server (slice 13) is the cheaper win. A small "instant preview" model on the phone could be revisited later.

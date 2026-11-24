@@ -1,4 +1,4 @@
-# Volume retrain (side task; blocks slice 6b **step 1 only** - see 2026-11-20)
+# Volume retrain (side task, parked until the human has gathered the data; slice 14 needs it)
 
 Handover doc between sessions. Read this first, then update **Status** and the **Log** at the end of every session.
 
@@ -8,11 +8,11 @@ The field test (2026-11-18, see `wall_size_hold_distance.md`) showed YOLO misses
 - In capture `173933`, the left pyramid is not detected even at 0.01 confidence.
 - In capture `174933`, the volume only appears at 0.081 confidence, below our 0.25 floor.
 
-Slice 6b (volume face angles) is no use if the volume isn't found. So we fine-tune the model on more volume photos first, then resume 6b.
+Slice 11 (volume face angles) is no use if the volume isn't found. So we fine-tune the model on more volume photos first, then resume 11.
 
-This is deliberately **not** a slice in `wall_size_hold_distance.md`. Once the new model is in, go back to slice 6b. Order after that is unchanged: 6b → 8 → 7 → End.
+This is deliberately **not** a slice in `wall_size_hold_distance.md`. Once the new model is in, slice 14 (volumes, finish) can spot holds on volumes. Slice order lives in `handover.md`.
 
-**Correction (2026-11-20):** only 6b **step 1** (spotting that a hold is on a volume, which needs a VOLUME polygon) waits for this retrain. Step 2, the volume face angle, takes a volume mask as *input*, so it is being developed and tested against synthetic and hand-drawn masks in parallel with the relabelling. See the 2026-11-20 entry in `handover_wall_size_hold_distance.md`. The retrain is no longer on 6b's critical path.
+**Correction (2026-11-20):** only spotting that a hold is on a volume (now part of slice 14, which needs a VOLUME polygon) waits for this retrain. Step 2, the volume face angle, takes a volume mask as *input*, so it is being developed and tested against synthetic and hand-drawn masks in parallel with the relabelling. See slice 11 in `handover.md`. The retrain is no longer on 11's critical path.
 
 ## Who does what
 
@@ -28,7 +28,7 @@ This is deliberately **not** a slice in `wall_size_hold_distance.md`. Once the n
 | 8. Write the Colab fine-tune notebook (starts from the current `best.pt`) | Agent | ☐ |
 | 9. Train on Colab, return the new `best.pt` | Human | ☐ |
 | 10. Evaluate old vs new model | Agent | ☐ |
-| 11. If it passes, swap the model into the backend and resume slice 6b | Agent (human approves) | ☐ |
+| 11. If it passes, swap the model into the backend and resume slice 11 | Agent (human approves) | ☐ |
 
 **Where the data lives:** `C:\ML Climbing Project\Datasets\current\2026-11-19_volume_retrain\`. Its `README.md` explains the folders and the Roboflow steps. Older datasets are in `Datasets\archive\`, named `YYYY-MM-DD_<name>` (see `Datasets\README.md`).
 
@@ -55,6 +55,7 @@ This is deliberately **not** a slice in `wall_size_hold_distance.md`. Once the n
 - The human took them, or has permission to use them.
 - Variety: volume colours, shapes and sizes; dark-on-dark; slabs and overhangs; different gyms, distances and lighting.
 - Add the 15 photos in `backend/field_captures/*/photo.jpg`.
+- **Also photograph a slab wall** (a wall leaning back, less steep than vertical), with and without volumes (human, 2026-11-24). The same slab photos, with the wall angle and a few tape distances noted, are the test data for slice 12's slab vs overhang check.
 
 **Labelling**
 - **Label every hold and every volume** in each photo. An unlabelled hold teaches the model that holds are background.
@@ -77,7 +78,7 @@ This is deliberately **not** a slice in `wall_size_hold_distance.md`. Once the n
 | Volume recall on the held-out test set | Clearly higher than the old model's |
 | The two field misses (`173933` left pyramid, `174933`) | Found above the 0.25 floor |
 | Hold detection | Not worse than the old model's on the old val split |
-| Field replay (`backend/eval_field.py`, once it exists in slice 5e) | Distances and angles no worse |
+| Field replay (`backend/eval_field.py`, re-created in slice 12) | Distances and angles no worse |
 
 Run the old and new models on exactly the same images.
 
@@ -118,15 +119,15 @@ Scratch extract and overlay sheets are at `C:\Users\samst\AppData\Local\Temp\cla
 ## Log
 
 - **2026-11-20:**
-  - Slice 6b step 2 (volume face angle) restarted on a new approach: the wall plane from the bolt grid plus the volume's base back-projected onto it. Built as `backend/volume.py`, exact on synthetic geometry. Details and the finding that drives it are in `handover_wall_size_hold_distance.md`.
-  - 6b step 2 no longer waits for this retrain (see the correction under "Why"). Relabelling and the geometry work run in parallel.
+  - Slice 11 (volume face angle) restarted on a new approach: the wall plane from the bolt grid plus the volume's base back-projected onto it. Built as `backend/volume.py`, exact on synthetic geometry. Details are in `handover.md`, slice 11.
+  - 11 step 2 no longer waits for this retrain (see the correction under "Why"). Relabelling and the geometry work run in parallel.
   - Every leftover of the abandoned depth-model attempt was deleted: the temp `scratchpad/vol/` and `depthenv/` dirs, a downloaded PDF, and 95 MB of Depth-Anything-V2-Small weights in `~/.cache/huggingface`. **The retrain scratch was left untouched** - `scratchpad/ds2000/`, `emb_legacy.npz`, `emb_test.npz`, `orb_pairs.pkl`, `S_centered.npy`, `old_drafts/`, `pl_fix/`, `pl_test/`, `heic_test/` and the sheet JPEGs are all still there.
   - Next for the human on this doc: unchanged, steps 3 and 6 (correct both label sets in Roboflow).
 
 - **2026-11-19:**
   - Plan agreed with the human.
   - Confirmed `dataset_3_hopefully` is not the training set.
-  - The B2 surface-normal test (slice 6b) is paused until the new model is in. Running it also needs the human's OK to download and run model code from GitHub (Metric3D v2 or DSINE).
+  - The B2 surface-normal test (slice 11) is paused until the new model is in. Running it also needs the human's OK to download and run model code from GitHub (Metric3D v2 or DSINE).
   - Found the legacy set (`2000_corrections` v1) and audited its labels.
   - Human chose medium cleanup: fresh draft labels from the model, corrected by the human.
   - Reorganised `C:\ML Climbing Project\Datasets` into `archive/` and `current/` with dated names. Nothing was deleted.
@@ -141,4 +142,4 @@ Scratch extract and overlay sheets are at `C:\Users\samst\AppData\Local\Temp\cla
     - The 26 iPhone HEIC photos were converted to JPG with Windows' built-in decoder (PowerShell, `System.Windows.Media.Imaging`), so no `pillow-heif` install was needed. WebP and AVIF were converted with Pillow.
     - One duplicate web image was dropped, leaving 42, which were draft-labelled.
     - Drafts show the volume problem clearly: many volumes come out as HOLD (large triangles and slabs), so correcting the class is the main job in Roboflow.
-  - Scratch harness for B2 (fake wall plus scorer) is at `C:\Users\samst\AppData\Local\Temp\claude\9b2860e22918f817\42e0adec-2063-4034-bdf7-d1fad434972d\scratchpad\vol\`. It is temporary and may be cleared on reboot. If it's gone, it can be rewritten from the description in `wall_size_hold_distance.md`, slice 6b.
+  - Scratch harness for B2 (fake wall plus scorer) is at `C:\Users\samst\AppData\Local\Temp\claude\9b2860e22918f817\42e0adec-2063-4034-bdf7-d1fad434972d\scratchpad\vol\`. It is temporary and may be cleared on reboot. If it's gone, it can be rewritten from the description in `wall_size_hold_distance.md`, slice 11.

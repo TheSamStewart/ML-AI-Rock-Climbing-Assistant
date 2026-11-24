@@ -1,4 +1,4 @@
-"""Tests for volume.py (feature wall_size_hold_distance, slice 6b step 2).
+"""Tests for volume.py (feature wall_size_hold_distance, slice 11).
 
 Designed from the module's stated contract only, not from its internals:
 

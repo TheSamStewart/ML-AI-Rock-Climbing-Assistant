@@ -92,7 +92,7 @@ coordinates. Keep instructions concise, one instruction per step."""
 #bolts, rounded up. A distance with no tier is treated as "A".
 #CENTROID_ALLOWANCE_CM covers hold centres being estimates (centroid of the
 #hold's outline, standing off the wall); added to hold-to-hold distances
-#only, as wall length is measured bolt to bolt. Slice 6 re-calibrates it.
+#only, as wall length is measured bolt to bolt. Slice 10 re-calibrates it.
 
 DISTANCE_MARGIN_PCT_BY_TIER = {"A": 6, "C": 14}
 DISTANCE_MARGIN_PCT = DISTANCE_MARGIN_PCT_BY_TIER["A"]  #also the wall length's margin (bolt to bolt)

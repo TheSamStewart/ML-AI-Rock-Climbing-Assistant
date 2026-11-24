@@ -29,7 +29,7 @@ DIAGONAL_35MM = 43.27  # mm, diagonal of a 36 x 24 mm frame
 #was 11-14 deg on every reference photo that has them (eval_angle.py), so 12.
 DEFAULT_PITCH_DEG = 12.0
 #Margins on the reported angle, in degrees (docs/features/wall_size_hold_distance.md,
-#Slice 5d). With the true camera tilt the panels on the reference walls were
+#Slice 9). With the true camera tilt the panels on the reference walls were
 #within ~7 deg except sparse or merged panels; an assumed pitch adds the
 #spread between people's habits.
 MARGIN_SENSOR_DEG = 8.0

@@ -1,8 +1,8 @@
-"""Slice 5b tests for scale.py: panel segmentation from the bolt lattice, one
+"""Slice 7 tests for scale.py: panel segmentation from the bolt lattice, one
 homography per panel, cross-seam distances.
 
 Written from the spec (docs/features/wall_size_hold_distance.md: Reference
-data, "Accuracy results (slice 5b)", Decisions -> "Slice 5b panels +
+data, "Accuracy results (slice 7)", Decisions -> "Slice 7 panels +
 homography per panel", the 5b row of Slices) only, not from the implementation.
 
 Contract under test:
@@ -489,7 +489,7 @@ def test_offset_seam_is_two_panels_and_two_frames(kind, hidden):
 
 # --- adjacent panels at a genuinely different scale / rotation ----------------------
 #
-# The slice 5a guard geometry (test_scale._two_panels): these are separate
+# The slice 6 guard geometry (test_scale._two_panels): these are separate
 # panels, never one frame.
 
 
@@ -589,15 +589,15 @@ def test_panel_and_background_wall_at_another_depth(bg_scale):
 #
 # Spec: a degenerate or too-fine homography puts every bolt near *some* site and
 # swallowed whole photos (p95 > 1000%) before the metric-agreement guard; and
-# (slice 5a) a single stray bolt fitted on a too-fine lattice re-read a whole
+# (slice 6) a single stray bolt fitted on a too-fine lattice re-read a whole
 # 78-bolt panel before the "finer group >= 7 bolts" guard. Here the wall is a
 # clean 10 x 14 panel plus a few false points that invite such a fit:
 # * strays on the sqrt(2)-finer lattice (square edge midpoints, 0.5 units from
 #   the nearest bolts). That is 0.71 x the 0.71-unit nearest-bolt spacing, so
-#   they survive slice 2's "NN >= 0.7 x local median" filter, and they sit in
-#   evenly spaced lines along 2 directions (slice 2's lattice support). Points
+#   they survive slice 3's "NN >= 0.7 x local median" filter, and they sit in
+#   evenly spaced lines along 2 directions (slice 3's lattice support). Points
 #   any closer (e.g. on the twice-finer lattice, 0.35 units) are removed by
-#   slice 2 before fit_lattice sees them, so they aren't tested here;
+#   slice 3 before fit_lattice sees them, so they aren't tested here;
 # * a collinear row: 14 evenly spaced points 2 units below the wall, off its
 #   lattice (a 1-D "lattice" has no unique homography).
 
@@ -653,7 +653,7 @@ def test_a_lone_too_fine_or_degenerate_fit_does_not_swallow_the_wall(extra, name
 
 # --- reference photos (slow) ----------------------------------------------------------
 #
-# Spec slice 5b done-when, scored with the live ground truth (index_lattice):
+# Spec slice 7 done-when, scored with the live ground truth (index_lattice):
 # * segmented panels match panels.json: "most bolts land in the right panel",
 #   measured as the spec's purity (and coverage, the share of in-outline bolts
 #   in some segmented panel). The spec gives no number; REF_PURITY /
@@ -725,7 +725,7 @@ def test_reference_cross_seam_pairs_within_margin(photo):
 @pytest.mark.parametrize("photo", _ref_params(["IMG_7503"]))
 def test_reference_panels_with_turned_grids_share_no_frame(photo):
     # IMG_7503's two panels have grids turned 45 deg to each other (spec,
-    # slice 3 Metric note), so no index_lattice component may hold a real
+    # slice 4 Metric note), so no index_lattice component may hold a real
     # share of both outlines (>= 3 bolts of each: the spec's minimum for
     # linking two panels).
     _, _, outline, _, comp = _ref_ground_truth(photo)

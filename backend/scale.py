@@ -189,7 +189,7 @@ OFF_LATTICE_MAJORITY = 0.5
 
 SEGMENT_SAMPLES = 16
 
-#Confidence tiers (docs/features/wall_size_hold_distance.md, slice 5c). A
+#Confidence tiers (docs/features/wall_size_hold_distance.md, slice 8). A
 #distance is tier "A" when every one of its SEGMENT_SAMPLES points is within
 #TIER_A_MAX_SUPPORT nearest-neighbour spacings of a fitted bolt, i.e. it is
 #measured on lattice evidence right where it runs; otherwise "C": the scale

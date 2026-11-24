@@ -142,11 +142,11 @@ async def test_detect_scale_shape(client, jpeg_bytes, mock_run_detection, mock_b
     assert s["bolt_count"] == len(FAKE_BOLTS)
     assert isinstance(s["wall_length_units"], float) and s["wall_length_units"] > 0
     n = len(sample_detections)
-    # Slice 5c: tiers is N rows of N characters, "A" or "C" ("B" is not produced).
+    # Slice 8: tiers is N rows of N characters, "A" or "C" ("B" is not produced).
     assert len(s["tiers"]) == n
     assert all(isinstance(row, str) and len(row) == n and set(row) <= {"A", "C"} for row in s["tiers"])
     assert len(s["distances_units"]) == n and all(len(row) == n for row in s["distances_units"])
-    # Slice 5d: the angle fields are added on top of compute_scale's output.
+    # Slice 9: the angle fields are added on top of compute_scale's output.
     expected = scale.compute_scale(sample_detections, (64, 48), FAKE_BOLTS)
     assert {k: v for k, v in s.items() if k not in ANGLE_KEYS} == {k: v for k, v in expected.items() if k not in ANGLE_KEYS}
     assert len(s["angles_deg"]) == n
@@ -250,7 +250,7 @@ async def test_detect_distances_come_from_bolt_lattice_in_px(client, mock_run_de
                 assert d[i][j] == pytest.approx(_units_from_px(a, b, image_size, s), rel=0.03)
 
 
-# --- POST /detect: EXIF orientation (slice 3) ---
+# --- POST /detect: EXIF orientation (slice 4) ---
 
 
 async def test_detect_applies_exif_orientation_before_yolo_and_bolts(client, mock_run_detection, mock_bolts, sample_detections):
@@ -380,7 +380,7 @@ async def test_analysis_happy_path_enqueues_route(client, cached_detection_id, s
     mock_celery_task.assert_called_once()
     [route] = mock_celery_task.call_args.args
     assert set(route) - set(ANGLE_KEYS) == {"holds", "distances_units", "tiers", "wall_length_units", "bolt_spacing_cm"}
-    # conftest's sample_scale predates slice 5d: no angles to pass on.
+    # conftest's sample_scale predates slice 9: no angles to pass on.
     assert route.get("angles_deg") is None
     assert route["holds"] == detection.select_holds(sample_detections, selected)
     assert route["distances_units"] == [[0.0, 3.0, 6.0], [3.0, 0.0, 2.0], [6.0, 2.0, 0.0]]
@@ -409,7 +409,7 @@ async def test_analysis_route_matches_select_distances(client, cached_detection_
 
 
 async def test_analysis_old_cached_scale_without_tiers_still_enqueues(client, cached_detection_id, sample_detections, sample_scale, mock_celery_task, mock_redis_client):
-    # A scale cached before slice 5c has tiers None: /analysis must still enqueue.
+    # A scale cached before slice 8 has tiers None: /analysis must still enqueue.
     sample_scale["tiers"] = None
     await mock_redis_client.set(f"scale:{cached_detection_id}", json.dumps(sample_scale))
 

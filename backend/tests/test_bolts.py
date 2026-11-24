@@ -1,6 +1,6 @@
-"""Tests for bolts.detect_bolt_holes (feature wall_size_hold_distance, slice 2).
+"""Tests for bolts.detect_bolt_holes (feature wall_size_hold_distance, slice 3).
 
-Designed from the spec's "Slice 2 bolt detection" decision block and the
+Designed from the spec's "Slice 3 bolt detection" decision block and the
 public contract only:
 
     detect_bolt_holes(image: PIL.Image, detections: list[dict]) -> [{x, y, diameter}]
@@ -514,7 +514,7 @@ MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "best.pt"
 # * MIN_REFERENCE_BOLTS = 60. The grid has 2 bolts per (20 cm)^2 = 50 per m^2.
 #   Each photo shows several m^2 of wall across 2-4 panels, so hundreds of
 #   holes; even with half hidden behind holds and the blurry far edges, 60 is a
-#   floor that slice 3 needs (>= ~15 bolts per panel to fit a local Jacobian),
+#   floor that slice 4 needs (>= ~15 bolts per panel to fit a local Jacobian),
 #   not a stretch target.
 # * Spacing regularity. On a centred-square lattice every bolt's nearest
 #   neighbour is s/sqrt(2). Perspective changes that smoothly across the photo,
@@ -525,7 +525,7 @@ MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "best.pt"
 #   +/-REGULAR_TOL of ANY real lattice distance in LATTICE_MULTIPLES: 1x (the
 #   diagonal pitch s/sqrt(2)), sqrt(2)x (the square side s) or 2x (twice the
 #   diagonal). A real bolt whose diagonal neighbours are hidden by holds lands
-#   on sqrt(2)x or 2x (human decision, handover slice 2 Q1). REGULAR_FRACTION =
+#   on sqrt(2)x or 2x (human decision, handover slice 3 Q1). REGULAR_FRACTION =
 #   0.75 is kept: the remaining quarter covers seams, panel edges and centroid
 #   jitter. Speckle or wood-grain false positives, which outnumber bolts
 #   10-20x, sit much closer than one pitch to their neighbours (ratio < 0.85)
@@ -625,7 +625,7 @@ def test_reference_photo_bolt_count_and_spacing_regularity(name):
             + [
                 pytest.mark.xfail(
                     reason="IMG_7501 is a close-up with metal-filled holes and misaligned panels; "
-                    "spec defers it to slice 5 (panel segmentation)",
+                    "spec defers it to slices 6–8 (panel segmentation)",
                     strict=False,
                 )
             ],
