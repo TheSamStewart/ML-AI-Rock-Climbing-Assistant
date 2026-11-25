@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(uv run python -m pytest *)",
+      "Bash(uv run python eval_field.py *)",
+      "Bash(uv run python eval_scale.py *)",
+      "Bash(uv run python eval_angle.py *)",
+      "Bash(uv run python eval_volume.py *)",
+      "Bash(uv run python eval_volume_field.py *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(npx tsc --noEmit *)",
+      "Bash(npm run lint *)"
+    ],
+    "deny": [
+      "Bash(gh pr merge *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force *)",
+      "Bash(git push * -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push * --force-with-lease *)",
+      "Bash(git reset --hard *)",
+      "Bash(git push * main)",
+      "Bash(git push * main *)",
+      "Bash(git push * *:main)",
+      "Bash(git push * *:main *)",
+      "Bash(git push * *:refs/heads/main)"
+    ]
+  }
+}

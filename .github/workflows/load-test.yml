@@ -10,7 +10,7 @@ name: Load Test (backend)
 # regression signal worth alerting on weekly. Re-enable a schedule (or just
 # run this manually) once there's a real host - e.g. a VPS - to point
 # --base-url at, where the numbers reflect the app instead of the CI runner.
-# See backend/Agents.md section 4 for the full reasoning.
+# See backend/TESTING_PLAN.md section 4 for the full reasoning.
 
 on:
   workflow_dispatch:
