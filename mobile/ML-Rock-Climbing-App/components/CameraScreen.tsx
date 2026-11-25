@@ -3,6 +3,11 @@ import { AnalysisResult } from './AnalysisResult'
 import { CustomCamera } from './CustomCamera'
 import { CameraPermissionGate } from '@/components/CameraPermissionGate'
 import { PhotoPreview } from '@/components/PhotoPreview'
+import { SettingsButton } from '@/components/SettingsButton'
+import { SettingsModal } from '@/components/SettingsModal'
+import { useBoltSpacing } from '@/hooks/useBoltSpacing'
+import { useClimberStats } from '@/hooks/useClimberStats'
+import { GravityReading } from '@/hooks/useGravityReading'
 import { useState } from 'react'
 import { Asset } from 'expo-asset'
 
@@ -11,11 +16,11 @@ import { Asset } from 'expo-asset'
 
 //DEV ONLY - lets us skip the camera and pipe a bundled test photo straight
 //into PhotoPreview/the API, so the analysis pipeline can be tested without a real capture.
+//Uses a full-res reference photo: bolt-hole detection (and so distances) needs
+//roughly phone-camera resolution - below ~3000 px tall bolts are lost.
 
 async function useTestPhoto(setUri: (uri: string) => void) {
-  const [asset] = await Asset.loadAsync(
-    require('../assets/images/climbing-route-detection-slise-z8djc_EJAcI33FosVzoc3oVr1R_jpg.rf.7zMZpydPD8vpamzWBLEv.jpg')
-  )
+  const [asset] = await Asset.loadAsync(require('../assets/known_measurements/reference/IMG_7504.jpeg'))
   setUri(asset.localUri ?? asset.uri)
 }
 
@@ -23,28 +28,69 @@ export function CameraScreen() {
   //Photo uri state to render image, passed down to camera component
 
   const [uri, setUri] = useState<string | null>(null)
+
+  //Phone tilt when the photo was taken (null for the test photo or with no
+  //sensor) - sent with the photo so the backend can estimate the wall angle.
+
+  const [gravity, setGravity] = useState<GravityReading | null>(null)
   const [task_id, setTaskId] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  //Owned here (not in PhotoPreview) so the settings panel and the distance
+  //labels share one value - saving a new spacing relabels PhotoPreview live.
+
+  const { boltSpacingCm, boltPattern, setBoltSettings } = useBoltSpacing()
+  const { climberStats, setClimberStats } = useClimberStats()
 
   return (
     <CameraPermissionGate>
-      {!uri ? (
-        <View style={styles.container}>
-          <CustomCamera onCapture={setUri} />
-          {__DEV__ && (
-            <View style={styles.testButton}>
-              <Button title="Use Test Photo" onPress={() => useTestPhoto(setUri)} />
-            </View>
-          )}
-        </View>
-      ) : !task_id ? (
-        <PhotoPreview
-          uri={uri}
-          onRetake={() => setUri(null)}
-          onSubmitted={(task_id) => setTaskId(task_id)}
+      <View style={styles.container}>
+        {!uri ? (
+          <>
+            <CustomCamera
+              onCapture={(photoUri, tilt) => {
+                setGravity(tilt)
+                setUri(photoUri)
+              }}
+            />
+            {__DEV__ && (
+              <View style={styles.testButton}>
+                <Button
+                  title="Use Test Photo"
+                  onPress={() => {
+                    setGravity(null)
+                    useTestPhoto(setUri)
+                  }}
+                />
+              </View>
+            )}
+          </>
+        ) : !task_id ? (
+          <PhotoPreview
+            uri={uri}
+            gravity={gravity}
+            boltSpacingCm={boltSpacingCm}
+            climberStats={climberStats}
+            onRetake={() => setUri(null)}
+            onSubmitted={(task_id) => setTaskId(task_id)}
+          />
+        ) : (
+          <AnalysisResult task_id={task_id} />
+        )}
+
+        {/* Rendered after the camera/preview so it sits on top of both */}
+
+        {!task_id && <SettingsButton onPress={() => setSettingsOpen(true)} />}
+        <SettingsModal
+          visible={settingsOpen}
+          boltSpacingCm={boltSpacingCm}
+          boltPattern={boltPattern}
+          onSave={setBoltSettings}
+          climberStats={climberStats}
+          onSaveClimberStats={setClimberStats}
+          onClose={() => setSettingsOpen(false)}
         />
-      ) : (
-        <AnalysisResult task_id={task_id} />
-      )}
+      </View>
     </CameraPermissionGate>
   )
 }

@@ -1,0 +1,38 @@
+{
+  "_help": "Fill by hand. Angles in degrees from vertical (+ overhang, - slab). Distances in cm along the wall surface. Hold ids are the numbers on overlay_<n>.jpg. measured_between: 'bolt' (bolt hole to bolt hole), 'centre' (middle of hold to middle of hold) or 'edge'. Leave null if unknown.",
+  "bolt_spacing_cm_measured": 25,
+  "bolt_pattern": "square with centre bolt",
+  "wall_angles": [
+    {
+      "where": "whole wall (both picked holds)",
+      "hold_ids": [
+        77,
+        26
+      ],
+      "angle_deg": 24,
+      "how_measured": "tester's measurement (method not stated)",
+      "source": "confirmed by tester 2026-11-18: note says 'same' as 2026-11-18_174106_63d2f8c2, so assumed the same two holds (76 cm, 24 deg)"
+    }
+  ],
+  "tape_pairs": [
+    {
+      "from_hold_id": 77,
+      "to_hold_id": 26,
+      "cm": 76,
+      "measured_between": "bolt",
+      "notes": "",
+      "source": "confirmed by tester 2026-11-18: note says 'same' as 2026-11-18_174106_63d2f8c2, so assumed the same two holds (76 cm, 24 deg)"
+    }
+  ],
+  "wall_length_cm": null,
+  "camera": {
+    "distance_from_wall_m": null,
+    "height_m": null,
+    "held": "portrait (sensor roll within 3 deg)",
+    "notes": "same as 174106 but further again, with an obstruction, and the phone swaying"
+  },
+  "conditions": "",
+  "notes": "Filled from the in-app note: 'Same but obstruction and further swaying'",
+  "bolt_spacing_source": "known value for this wall: 25 cm (tester, 2026-11-18)",
+  "_filled_by": "agent, 2026-11-18, from saves.json notes; all assumptions confirmed by the tester the same day"
+}

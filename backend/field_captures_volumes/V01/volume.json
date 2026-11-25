@@ -1,0 +1,107 @@
+{
+  "_help": "Fill by hand after the session. Angles in degrees: + overhang, - slab. Lengths in cm. null = not recorded (not zero). 'photos' is filled by the app.",
+  "volume": "V01",
+  "photos": {
+    "A": [
+      "photo_A.jpg"
+    ],
+    "B": [
+      "photo_B.jpg"
+    ],
+    "edge": [
+      "photo_edge.jpg"
+    ]
+  },
+  "shape": "other",
+  "_shape_options": [
+    "square pyramid",
+    "triangular pyramid",
+    "wedge",
+    "box",
+    "curved",
+    "blade",
+    "other"
+  ],
+  "colour": "natural wood (plywood volume, yellow = drawn faces)",
+  "wall_angle_beside_deg": 0,
+  "faces": [
+    {
+      "number": 1,
+      "name": "top",
+      "angle_deg": -51,
+      "points": "up",
+      "edges_cm": {
+        "top": 117,
+        "bottom": 134
+      }
+    },
+    {
+      "number": 2,
+      "name": "lower left",
+      "angle_deg": 17,
+      "points": "down, left",
+      "edges_cm": {
+        "top": 41,
+        "bottom": 41,
+        "right": 12
+      }
+    },
+    {
+      "number": 3,
+      "name": "underside, left of centre",
+      "angle_deg": 30,
+      "points": "down",
+      "edges_cm": {
+        "top": 26,
+        "bottom": 26,
+        "left": 12,
+        "right": 15
+      }
+    },
+    {
+      "number": 4,
+      "name": "underside, right of centre",
+      "angle_deg": 30,
+      "points": "down",
+      "edges_cm": {
+        "top": 26,
+        "bottom": 26,
+        "left": 15,
+        "right": 12
+      }
+    },
+    {
+      "number": 5,
+      "name": "lower right",
+      "angle_deg": 21,
+      "points": "down, right",
+      "edges_cm": {
+        "top": 41,
+        "bottom": 41,
+        "left": 12
+      }
+    }
+  ],
+  "_faces_help": "Level along each face's steepest line, + overhang / - slab. 'points' = which way the face points (left / right / up / down / at me). Add or remove faces as needed. 'number' = the number drawn on photo_A; 'edges_cm' = the tape lengths from the notes .txt, as named there.",
+  "depth_cm": 46,
+  "_depth_help": "Tip/top to wall, measured square to the wall.",
+  "tip_position": null,
+  "_tip_position_help": "e.g. 'centred' or '4 cm right, 3 cm up'.",
+  "base_edges_cm": [],
+  "tip_to_base_corner_edges_cm": [],
+  "_tip_edges_help": "Edges from the tip to each base corner, if easy. Leave [] if not measured.",
+  "holds_hiding_base_corner": null,
+  "_holds_hiding_options": [
+    "none",
+    "partly"
+  ],
+  "bolt_spacing_cm": 25,
+  "_bolt_spacing_help": "Pre-filled with the app's setting at the first save. Change it if the wall differs.",
+  "notes": "Bolt spacing: the app was at its default 20 cm when V01 was saved (capture.json client.bolt_spacing_cm = 20); the gym's real spacing is 25 cm (tester, 2026-11-25). capture.json stores distances in grid units only, so cm = units x 25. Measurements and face numbers: V_01_measurements.txt and the drawing on photo_A.jpg. photo_A.jpg was overwritten by the Paint drawing (original pixels lost; capture.json detections/bolts are from the original). Wall angle 0: tester 2026-11-25, 'same as the rest'. photo_A.jpg is the Paint drawing (original lost); use capture.json for its detections/bolts, and photo_B/photo_edge for pixels. Filled from the .txt notes and photo_A numbers by the agent, 2026-11-25.",
+  "detection_ids": {
+    "A": 6,
+    "B": 4,
+    "edge": 6
+  },
+  "_detection_ids_help": "The measured volume's id in each photo's saved /detect result (capture.json). null = YOLO did not detect it (or no saved detections)."
+}

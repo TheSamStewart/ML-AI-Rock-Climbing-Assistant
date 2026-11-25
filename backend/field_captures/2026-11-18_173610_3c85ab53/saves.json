@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:36:11+00:00",
+    "selected_hold_ids": [
+      30,
+      8
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Cross seam pink is 20 purple is 1, distance 155cm",
+    "holds": [
+      {
+        "id": 30,
+        "class_name": "HOLD",
+        "x": 0.07502335072111807,
+        "y": 0.4917976845209865,
+        "angle_deg": 11.9
+      },
+      {
+        "id": 8,
+        "class_name": "HOLD",
+        "x": 0.4672447962999397,
+        "y": 0.7044833858334437,
+        "angle_deg": 17.0
+      }
+    ],
+    "legs": [
+      {
+        "from": 30,
+        "to": 8,
+        "units": 6.187,
+        "cm": 123.7,
+        "tier": "C",
+        "margin_cm": 22.3
+      }
+    ],
+    "wall_length_cm": 445.1,
+    "overlay": "overlay_1.jpg"
+  }
+]

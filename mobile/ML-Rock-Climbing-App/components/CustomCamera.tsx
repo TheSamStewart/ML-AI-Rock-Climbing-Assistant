@@ -1,16 +1,24 @@
 import { CameraView } from 'expo-camera'
-import { StyleSheet, View, TouchableOpacity, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import React, { useRef, useState } from 'react'
 import { ModeSlider } from './ModeSlider'
+import { GravityReading, useGravityReading } from '@/hooks/useGravityReading'
+import { largestPictureSize } from '@/utils/pictureSize'
 
-//Typing for props
+//Typing for props - gravity is the phone's tilt when the shutter was pressed
+//(null when there is no sensor), used to work out the wall angle.
 
 type CustomCameraProps = {
-  onCapture: (uri: string) => void
+  onCapture: (uri: string, gravity: GravityReading | null) => void
 }
 
 export function CustomCamera({ onCapture }: CustomCameraProps) {
+  //Latest smoothed accelerometer reading, kept in a ref so reading it at the
+  //shutter doesn't re-render the camera
+
+  const gravity = useGravityReading()
+
   //Shutter size calculations
 
   const { width } = useWindowDimensions()
@@ -44,24 +52,8 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
   const [pictureSize, setPictureSize] = useState<string | undefined>(undefined)
 
   const onCameraReady = async () => {
-    const sizes = await cameraRef.current?.getAvailablePictureSizesAsync()
-    if (!sizes) return
-
-    //Sizes also include qualitative aliases (e.g. "Photo", "High") alongside real
-    //"WxH" entries - only the latter are usable as a pictureSize value.
-
-    const best = sizes
-      .map((size) => {
-        const match = /^(\d+)x(\d+)$/.exec(size)
-        return match ? { size, area: Number(match[1]) * Number(match[2]) } : null
-      })
-      .filter((s): s is { size: string; area: number } => s !== null)
-      .reduce<{ size: string; area: number } | null>(
-        (max, current) => (!max || current.area > max.area ? current : max),
-        null
-      )
-
-    if (best) setPictureSize(best.size)
+    const best = largestPictureSize(await cameraRef.current?.getAvailablePictureSizesAsync())
+    if (best) setPictureSize(best)
   }
 
   //Takes picture when shutter button is pressed
@@ -76,11 +68,20 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
 
     //Take image
 
+    //Read the tilt before the (slow) capture call so it is the tilt the phone
+    //was held at, not wherever it moved to while the photo was saved.
+
+    const tilt = gravity.current
+
     try {
-      const photo = await cameraRef.current?.takePictureAsync()
+      //JPEG quality 0.85 (default 1.0): about 4x smaller uploads (3.8 -> 0.9 MB)
+      //with the same holds, bolts, angles and distances on the field captures
+      //(human-approved, 2026-11-24, slice 16). Never lower the RESOLUTION -
+      //bolt detection needs it (pictureSize above).
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.85 })
       if (!photo?.uri) return
 
-      onCapture(photo.uri)
+      onCapture(photo.uri, tilt)
     } catch (e) {
       console.error(e)
     } finally {
@@ -100,6 +101,10 @@ export function CustomCamera({ onCapture }: CustomCameraProps) {
         pictureSize={pictureSize}
         onCameraReady={onCameraReady}
       />
+      {/* The wall length is only the full wall's height when all of it is in frame (slice 16). */}
+      <Text style={[styles.hint, { bottom: insets.bottom + width * 0.06 + size + 16 }]}>
+        Fit the whole wall in the shot, floor to top
+      </Text>
       <View style={[styles.shutterContainer, { bottom: insets.bottom + width * 0.06 }]}>
         <ModeSlider size={size}>
           <TouchableOpacity disabled={busy} onPress={takePicture} style={[styles.shutter, shutter]} />
@@ -115,6 +120,16 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+  },
+  hint: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    textAlign: 'center',
+    color: 'white',
+    fontSize: 14,
+    textShadowColor: 'black',
+    textShadowRadius: 4,
   },
   shutterContainer: {
     position: 'absolute',

@@ -1,0 +1,73 @@
+{
+  "_help": "Fill by hand after the session. Angles in degrees: + overhang, - slab. Lengths in cm. null = not recorded (not zero). 'photos' is filled by the app.",
+  "volume": "V02",
+  "photos": {
+    "A": [
+      "photo_A.jpg"
+    ],
+    "B": [
+      "photo_B.jpg"
+    ],
+    "edge": [
+      "photo_edge.jpg"
+    ]
+  },
+  "shape": "curved",
+  "_shape_options": [
+    "square pyramid",
+    "triangular pyramid",
+    "wedge",
+    "box",
+    "curved",
+    "blade",
+    "other"
+  ],
+  "colour": "yellow",
+  "wall_angle_beside_deg": 0,
+  "faces": [
+    {
+      "number": 1,
+      "name": "top",
+      "angle_deg": null,
+      "points": "up",
+      "edges_cm": {
+        "top": 78,
+        "bottom": 94
+      },
+      "note": "iPhone Measure app read -92; omitted as it doesn't look past horizontal (tester, 2026-11-25)"
+    },
+    {
+      "number": 2,
+      "name": "front/underside",
+      "angle_deg": 10,
+      "points": "at me, down",
+      "edges_cm": {
+        "top": 94,
+        "bottom": 86,
+        "middle": 6
+      }
+    }
+  ],
+  "_faces_help": "Level along each face's steepest line, + overhang / - slab. 'points' = which way the face points (left / right / up / down / at me). Add or remove faces as needed. 'number' = the number drawn on photo_A; 'edges_cm' = the tape lengths from the notes .txt, as named there.",
+  "depth_cm": 47,
+  "_depth_help": "Tip/top to wall, measured square to the wall.",
+  "tip_position": null,
+  "_tip_position_help": "e.g. 'centred' or '4 cm right, 3 cm up'.",
+  "base_edges_cm": [],
+  "tip_to_base_corner_edges_cm": [],
+  "_tip_edges_help": "Edges from the tip to each base corner, if easy. Leave [] if not measured.",
+  "holds_hiding_base_corner": null,
+  "_holds_hiding_options": [
+    "none",
+    "partly"
+  ],
+  "bolt_spacing_cm": 25.0,
+  "_bolt_spacing_help": "Pre-filled with the app's setting at the first save. Change it if the wall differs.",
+  "notes": "OUTLINE NOT EXACT: this volume is hard to outline, so the hand-drawn face lines are approximate - use them only to tell which face number is which, and derive the exact outline/edges from the photo itself. The tape measurements (angles, edge lengths, depth) ARE precise (tester, 2026-11-25). Curved: edge lengths are approximate (tester's notes: 'rough but as accurate as possible as circular'). Hand-drawn outline is approximate; use it only to tell the faces apart. Expected result: no trusted fit (curved volumes say nothing). Filled from the .txt notes and photo_A numbers by the agent, 2026-11-25.",
+  "detection_ids": {
+    "A": 3,
+    "B": 11,
+    "edge": 6
+  },
+  "_detection_ids_help": "The measured volume's id in each photo's saved /detect result (capture.json). null = YOLO did not detect it (or no saved detections)."
+}

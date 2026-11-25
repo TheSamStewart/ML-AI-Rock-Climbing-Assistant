@@ -21,6 +21,15 @@ def get_model():
         _model = YOLO(MODEL_PATH)
     return _model
 
+
+def warm_up() -> None:
+    """Load the model and run one tiny prediction, so the first real photo
+    after a server start doesn't pay for loading weights and initialising the
+    runtime (a cold /detect once took 9.8 s for YOLO alone). Called from
+    main.py's startup hook (slice 13)."""
+    import numpy as np
+    get_model().predict(np.zeros((64, 64, 3), np.uint8), verbose=False, **PREDICT_KWARGS)
+
 #Function that finds the centre of the ML hold predictions
 
 def _polygon_centroid(points: np.ndarray) -> tuple[float, float]:
@@ -56,7 +65,7 @@ def _polygon_centroid(points: np.ndarray) -> tuple[float, float]:
 
 
 #Inference settings tuned against labelled validation images (see
-#Docs/decisions.md, "best.pt inference settings"). end2end=False switches
+#docs/decisions.md, "best.pt inference settings"). end2end=False switches
 #YOLO26 to its NMS head - the default end-to-end head skips NMS entirely and
 #left same-class near-duplicates that broke tap-to-toggle.
 
@@ -149,18 +158,23 @@ class UnknownHoldIdError(ValueError):
     stale/expired detection_id being reused against different detections."""
 
 
-#Filters+groups a cached detections list down to the subset the client
-#actually selected - a pure lookup, no geometry, since the client already
-#resolved which detection each tap/selection refers to.
+#Filters a cached detections list down to the subset the client actually
+#selected, in pick order - a pure lookup, no geometry, since the client
+#already resolved which detection each tap/selection refers to. Ids are kept
+#so the LLM can match each hold to its entries in distances_cm.
 
-def select_holds(detections: list[dict], selected_ids: list[int]) -> dict[str, list[tuple[float, float]]]:
+def select_holds(detections: list[dict], selected_ids: list[int]) -> list[dict]:
     by_id = {d["id"]: d for d in detections}
 
-    master: dict[str, list[tuple[float, float]]] = {}
+    holds: list[dict] = []
     for hold_id in selected_ids:
         det = by_id.get(hold_id)
         if det is None:
             raise UnknownHoldIdError(f"select_holds: unknown hold id {hold_id!r}")
-        centroid = (det["centroid"]["x"], det["centroid"]["y"])
-        master.setdefault(det["class_name"], []).append(centroid)
-    return master
+        holds.append({
+            "id": det["id"],
+            "class_name": det["class_name"],
+            "x": det["centroid"]["x"],
+            "y": det["centroid"]["y"],
+        })
+    return holds

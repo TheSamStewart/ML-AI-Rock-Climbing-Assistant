@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:41:07+00:00",
+    "selected_hold_ids": [
+      3,
+      4
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Actual distance 76cm actual angle 24",
+    "holds": [
+      {
+        "id": 3,
+        "class_name": "HOLD",
+        "x": 0.16313214481567836,
+        "y": 0.28102643803673677,
+        "angle_deg": 22.8
+      },
+      {
+        "id": 4,
+        "class_name": "HOLD",
+        "x": 0.849703117569161,
+        "y": 0.39272740914494786,
+        "angle_deg": 22.8
+      }
+    ],
+    "legs": [
+      {
+        "from": 3,
+        "to": 4,
+        "units": 3.192,
+        "cm": 63.8,
+        "tier": "A",
+        "margin_cm": 8.8
+      }
+    ],
+    "wall_length_cm": 213.1,
+    "overlay": "overlay_1.jpg"
+  }
+]

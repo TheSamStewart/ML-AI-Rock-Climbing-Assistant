@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:33:46+00:00",
+    "selected_hold_ids": [
+      8,
+      12
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Angles same as last but phone at 70 degrees ish this time n",
+    "holds": [
+      {
+        "id": 8,
+        "class_name": "HOLD",
+        "x": 0.7111238758409238,
+        "y": 0.3730685605020742,
+        "angle_deg": 20.4
+      },
+      {
+        "id": 12,
+        "class_name": "HOLD",
+        "x": 0.49511206395649704,
+        "y": 0.3096974950431533,
+        "angle_deg": 22.2
+      }
+    ],
+    "legs": [
+      {
+        "from": 8,
+        "to": 12,
+        "units": 2.785,
+        "cm": 55.7,
+        "tier": "A",
+        "margin_cm": 8.3
+      }
+    ],
+    "wall_length_cm": 389.6,
+    "overlay": "overlay_1.jpg"
+  }
+]

@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:49:34+00:00",
+    "selected_hold_ids": [
+      2,
+      18
+    ],
+    "bolt_spacing_cm": 25.0,
+    "notes": "Bottom hold on volume is +6. Wall is -2 distance 162cm bolt to bolt",
+    "holds": [
+      {
+        "id": 2,
+        "class_name": "HOLD",
+        "x": 0.6783584877077714,
+        "y": 0.23731045206163878,
+        "angle_deg": -3.1
+      },
+      {
+        "id": 18,
+        "class_name": "HOLD",
+        "x": 0.6447101688965086,
+        "y": 0.7199197841588024,
+        "angle_deg": -2.9
+      }
+    ],
+    "legs": [
+      {
+        "from": 2,
+        "to": 18,
+        "units": 6.743,
+        "cm": 168.6,
+        "tier": "C",
+        "margin_cm": 28.6
+      }
+    ],
+    "wall_length_cm": 347.7,
+    "overlay": "overlay_1.jpg"
+  }
+]

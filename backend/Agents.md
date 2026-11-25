@@ -9,7 +9,7 @@ connection for broker/result-backend.
 
 ## 1–2. Per-file coverage
 
-The per-test breakdown lives in [Docs/testing.md](../Docs/testing.md) — keep
+The per-test breakdown lives in [docs/testing.md](../docs/testing.md) — keep
 that as the single source of truth instead of duplicating it here. Principles
 that apply across files:
 

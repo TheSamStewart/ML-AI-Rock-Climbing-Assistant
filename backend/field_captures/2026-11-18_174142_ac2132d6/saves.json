@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:41:45+00:00",
+    "selected_hold_ids": [
+      27,
+      12
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Same but further",
+    "holds": [
+      {
+        "id": 27,
+        "class_name": "HOLD",
+        "x": 0.7074949978381773,
+        "y": 0.47437340711893233,
+        "angle_deg": 24.1
+      },
+      {
+        "id": 12,
+        "class_name": "HOLD",
+        "x": 0.40036906712284986,
+        "y": 0.42921125392048015,
+        "angle_deg": 24.1
+      }
+    ],
+    "legs": [
+      {
+        "from": 27,
+        "to": 12,
+        "units": 3.136,
+        "cm": 62.7,
+        "tier": "A",
+        "margin_cm": 8.8
+      }
+    ],
+    "wall_length_cm": 331.5,
+    "overlay": "overlay_1.jpg"
+  }
+]

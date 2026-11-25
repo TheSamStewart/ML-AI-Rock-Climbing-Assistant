@@ -1,0 +1,20 @@
+Angles 
+
+1 -92
+2 10
+
+Lengths
+
+Rough but as accurate as possible as circular
+
+1
+Top 78
+Bottom 94ish
+2
+Top 94ish
+Bottom 86
+Middle 6
+3
+Depth 47
+
+Wall angle 0

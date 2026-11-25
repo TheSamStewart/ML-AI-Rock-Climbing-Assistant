@@ -27,11 +27,11 @@ export function useGetClimbAnalysis(task_id: string) {
       const stillInProgress =
         !data || data.status === 'PENDING' || data.status === 'STARTED' || data.status === 'RETRY'
 
-      //Stop polling if it has been 30s
+      //Stop polling after 120s - the LLM coaching call alone can take 30s+
 
       const elapsed = Date.now() - startedAtRef.current
 
-      if (elapsed >= 30000) {
+      if (elapsed >= 120000) {
         setTimedOut(true)
         return false
       }

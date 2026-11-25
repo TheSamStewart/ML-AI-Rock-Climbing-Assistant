@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:13:34+00:00",
+    "selected_hold_ids": [
+      11,
+      3
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "Sensor sanity on 1 degree wall actual distance bolt to bolt is about 180cm",
+    "holds": [
+      {
+        "id": 11,
+        "class_name": "HOLD",
+        "x": 0.7573990378812031,
+        "y": 0.38944686142763824,
+        "angle_deg": 1.7
+      },
+      {
+        "id": 3,
+        "class_name": "HOLD",
+        "x": 0.7247854008756816,
+        "y": 0.7264738236350575,
+        "angle_deg": 0.8
+      }
+    ],
+    "legs": [
+      {
+        "from": 11,
+        "to": 3,
+        "units": 7.816,
+        "cm": 156.3,
+        "tier": "C",
+        "margin_cm": 26.9
+      }
+    ],
+    "wall_length_cm": 324.1,
+    "overlay": "overlay_1.jpg"
+  }
+]

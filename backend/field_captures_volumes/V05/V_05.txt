@@ -1,0 +1,77 @@
+Angles 
+
+
+
+1 -17
+
+2 0
+
+3 29
+
+4 0
+
+5 1
+
+
+
+Lengths
+
+
+
+1
+
+Top 19
+
+Left 40
+
+Right 40
+
+Bottom 7
+
+2
+
+Top 40
+
+Left 18
+
+Right 75
+
+Bottom 24
+
+3
+
+Top 7
+
+Left 22
+
+Right 24
+
+Bottom 17
+
+4
+
+Top 40
+
+Left 75
+
+Right 18
+
+Bottom 22
+
+5
+
+Top 7
+
+Left 18
+
+Right 18
+
+Bottom 7
+
+
+
+Depth 41
+
+
+
+Wall angle 0

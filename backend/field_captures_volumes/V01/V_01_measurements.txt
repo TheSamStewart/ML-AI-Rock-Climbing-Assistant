@@ -1,0 +1,42 @@
+Faces 
+
+1
+Angles -51
+Lengths
+Top : 117
+Bottom: 134
+2
+Angles 17
+Lengths
+Top: 41
+Bottom: 41
+Right: 12
+3
+Angles 30
+Lengths
+Top: 26
+Bottom:26
+Left: 12
+Right: 15
+4
+Angles 30
+Lengths
+Top: 26
+Bottom: 26
+Left: 15
+Right: 12
+5
+Angles 21
+Lengths
+Top: 41
+Bottom: 41
+Left: 12
+
+6
+Depth: 46
+
+Corrections (2026-11-25, confirmed by tester):
+- Face 4: Left/Right were swapped (was Left 12, Right 15). Left = centre edge shared with face 3 (15); Right = edge shared with face 5 (12).
+- Face 5: Top/Bottom were 26 (copied from face 4). Face 5 mirrors face 2 (41/41), and face 1's bottom 134 = 41 + 26 + 26 + 41.
+- Signs: faces 2-5 (17, 30, 30, 21) are overhangs (+); face 1 is a slab (-51).
+- "6 / Depth: 46" is the volume's depth (cm, furthest point to the plywood, square to the wall), not a sixth face.

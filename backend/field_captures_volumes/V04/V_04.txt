@@ -1,0 +1,31 @@
+Angles 
+
+1 48
+2 -42
+3 -80
+4 -42
+
+
+Length
+
+1
+All edges 15
+2
+Bottom 15
+L 10
+R 23
+Top 20
+3
+Bottom 15 
+L 23
+R 23
+Top 15
+4
+Bottom 15 
+L 23
+R 10
+Top 10
+5
+Depth 23
+
+Wall angle 0

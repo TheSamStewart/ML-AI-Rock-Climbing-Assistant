@@ -1,0 +1,40 @@
+[
+  {
+    "save": 1,
+    "saved_at": "2026-11-18T17:31:56+00:00",
+    "selected_hold_ids": [
+      13,
+      11
+    ],
+    "bolt_spacing_cm": 20.0,
+    "notes": "White hold 17 green hold 18",
+    "holds": [
+      {
+        "id": 13,
+        "class_name": "HOLD",
+        "x": 0.46556053543019243,
+        "y": 0.2483435736659866,
+        "angle_deg": 20.5
+      },
+      {
+        "id": 11,
+        "class_name": "HOLD",
+        "x": 0.7051574579980959,
+        "y": 0.30319433832133985,
+        "angle_deg": 19.1
+      }
+    ],
+    "legs": [
+      {
+        "from": 13,
+        "to": 11,
+        "units": 2.784,
+        "cm": 55.7,
+        "tier": "A",
+        "margin_cm": 8.3
+      }
+    ],
+    "wall_length_cm": 396.3,
+    "overlay": "overlay_1.jpg"
+  }
+]

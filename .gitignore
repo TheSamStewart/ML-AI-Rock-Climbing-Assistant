@@ -25,3 +25,10 @@ backend/models/*
 .coverage.*
 coverage.xml
 htmlcov/
+
+# Synthetic volume-test scenes (regenerate with backend/fakewall.py)
+backend/fakewall_out/
+
+# Volume scan test feature: every scan's photos and result (~10 MB each),
+# written by POST /dev/volume-scan (docs/features/volume_scan.md).
+backend/field_captures_scans/
