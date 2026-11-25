@@ -1,4 +1,5 @@
 import logging
+import math
 from collections import deque
 from dataclasses import dataclass
 from itertools import product
@@ -204,15 +205,27 @@ TIER_A_MAX_SUPPORT = 1.5
 
 WALL_END_ALLOWANCE_UNITS = 0.5
 
-#Half-width of that band, in nearest-neighbour spacings - narrower bands miss
-#the top/bottom rows wherever holds cover the bolts (IMG_7502).
+#The vertical lines it is measured along (slice 16), at these percentiles of
+#the fitted bolts' x, averaged - see wall_length_units.
 
-WALL_BAND_SPACINGS = 4.0
+WALL_LINE_PERCENTILES = (20, 35, 50, 65, 80)
+
+#Half-width, in nearest-neighbour spacings, of the bolts each line takes its
+#top and bottom from. Tried 6 / 8 / 10 / unlimited on re-saved reference
+#photos: 8 keeps the worst spread at 7.6% (unlimited: 7.1%, old rule: 67%)
+#while still ignoring a distant side patch.
+
+WALL_WINDOW_SPACINGS = 8.0
 
 #Rounded so an N x N matrix doesn't bloat the /detect response - 0.001 units
 #is 0.02 mm at a 20 cm spacing, far below the method's accuracy.
 
 DISTANCE_DECIMALS = 3
+
+#wall_axes (slice 15) are directions in normalised photo coordinates; 4
+#decimals keep the up/across split well under 1% while the response stays small.
+
+AXES_DECIMALS = 4
 
 
 @dataclass
@@ -236,6 +249,18 @@ class Lattice:
                        pick(self.panel), pick(self.grid))
 
 
+#Slice 13: the per-bolt fit calls these on 2 x 2 matrices thousands of times,
+#where np.linalg's per-call overhead dominated. Same maths, done directly.
+_LATTICE_BASIS_INV = np.linalg.inv(LATTICE_BASIS)
+
+
+def _inv2(j: np.ndarray) -> np.ndarray:
+    """Inverse of a 2 x 2 matrix."""
+    a, b, c, d = j[0, 0], j[0, 1], j[1, 0], j[1, 1]
+    det = a * d - b * c
+    return np.array([[d, -b], [-c, a]]) / det
+
+
 def _nn_occupancy(vectors: np.ndarray, j: np.ndarray) -> int:
     """How many vectors are a nearest-neighbour step (+-J e1, +-J e2) under j."""
     steps = (j @ LATTICE_BASIS).T
@@ -247,7 +272,7 @@ def _nn_occupancy(vectors: np.ndarray, j: np.ndarray) -> int:
 def _inlier_count(vectors: np.ndarray, j: np.ndarray) -> int:
     """How many vectors land within FIT_ROUNDING_TOLERANCE nearest-neighbour
     lengths (px) of an integer lattice offset under j."""
-    coeffs = np.linalg.solve(LATTICE_BASIS, np.linalg.solve(j, vectors.T))
+    coeffs = _LATTICE_BASIS_INV @ (_inv2(j) @ vectors.T)
     residual = np.hypot(*(vectors.T - j @ LATTICE_BASIS @ np.round(coeffs)))
     return int((residual <= FIT_ROUNDING_TOLERANCE * np.hypot(*(j @ LATTICE_BASIS)).min()).sum())
 
@@ -260,7 +285,7 @@ def _refine(vectors: np.ndarray, j0: np.ndarray) -> tuple[np.ndarray, int] | Non
     The tolerance is in px, not lattice coordinates, so every basis of the
     same lattice gets the same inliers - in lattice coordinates a sheared
     basis stretches the tolerance and catches extra noise."""
-    coeffs = np.linalg.solve(LATTICE_BASIS, np.linalg.solve(j0, vectors.T))
+    coeffs = _LATTICE_BASIS_INV @ (_inv2(j0) @ vectors.T)
     rounded = np.round(coeffs)
     residual = np.hypot(*(vectors.T - j0 @ LATTICE_BASIS @ rounded))
     nn_px = np.hypot(*(j0 @ LATTICE_BASIS)).min()
@@ -285,22 +310,25 @@ def _basis_candidates(vectors: np.ndarray) -> np.ndarray:
     Pairs built from a false vector then lose on inlier count."""
     lengths = np.hypot(vectors[:, 0], vectors[:, 1])
     order = np.argsort(lengths)[:BASIS_POOL]
+    #Plain floats in the loops (slice 13): numpy scalar maths cost ~1 us a call.
     clusters: list[list[np.ndarray]] = []
+    heads: list[tuple[float, float, float]] = []   # (x, y, length) of each cluster's first vector
     for v in vectors[order]:
         if v[1] < 0 or (v[1] == 0 and v[0] < 0):
             v = -v
-        for c in clusters:
-            ref = c[0]
-            cos = (v @ ref) / (np.hypot(*v) * np.hypot(*ref))
-            if np.arccos(np.clip(cos, -1.0, 1.0)) < DIRECTION_CLUSTER and abs(np.hypot(*v) / np.hypot(*ref) - 1) < CLUSTER_LENGTH_TOLERANCE:
+        vx, vy = float(v[0]), float(v[1])
+        vn = math.hypot(vx, vy)
+        for c, (rx, ry, rn) in zip(clusters, heads):
+            cos = (vx * rx + vy * ry) / (vn * rn)
+            if math.acos(min(1.0, max(-1.0, cos))) < DIRECTION_CLUSTER and abs(vn / rn - 1) < CLUSTER_LENGTH_TOLERANCE:
                 c.append(v)
                 break
         else:
             clusters.append([v])
+            heads.append((vx, vy, vn))
     shortest_per_direction: list[int] = []
-    for i, c in enumerate(clusters):  # clusters are in length order of their first vector
-        ref = c[0]
-        if all(np.arccos(np.clip(abs(ref @ clusters[k][0]) / (np.hypot(*ref) * np.hypot(*clusters[k][0])), 0.0, 1.0)) >= DIRECTION_CLUSTER
+    for i, (rx, ry, rn) in enumerate(heads):  # clusters are in length order of their first vector
+        if all(math.acos(min(1.0, max(0.0, abs(rx * heads[k][0] + ry * heads[k][1]) / (rn * heads[k][2])))) >= DIRECTION_CLUSTER
                for k in shortest_per_direction):
             shortest_per_direction.append(i)
     frequent = sorted(range(len(clusters)), key=lambda i: len(clusters[i]), reverse=True)
@@ -328,10 +356,10 @@ def _fit_candidates(vectors: np.ndarray) -> list[np.ndarray]:
     for i in range(len(reps)):
         for k in range(i + 1, len(reps)):
             v1, v2 = reps[i], reps[k]
-            cos = abs(v1 @ v2) / (np.hypot(*v1) * np.hypot(*v2))
-            if np.arccos(min(1.0, cos)) < MIN_BASIS_ANGLE:
+            cos = abs(float(v1 @ v2)) / (math.hypot(*v1) * math.hypot(*v2))
+            if math.acos(min(1.0, cos)) < MIN_BASIS_ANGLE:
                 continue
-            fit = _refine(vectors, np.column_stack([v1, v2]) @ np.linalg.inv(LATTICE_BASIS))
+            fit = _refine(vectors, np.column_stack([v1, v2]) @ _LATTICE_BASIS_INV)
             if fit is None:
                 continue
             j, count = fit
@@ -512,11 +540,16 @@ def fit_lattice(xy: np.ndarray) -> Lattice:
 
     The fitted bolts are then split into flat panels (segment_panels)."""
     xy = np.asarray(xy, dtype=np.float64).reshape(-1, 2)
-    lattice = _fit_lattice_once(xy)
+    #Pass 2 reuses pass 1's per-bolt fits wherever a bolt's pooled neighbour
+    #vectors are unchanged (most bolts: removing a few off-lattice points only
+    #touches their neighbourhoods). Same input bytes -> same fit, so this is
+    #exact (slice 13).
+    fits: dict[bytes, list[np.ndarray]] = {}
+    lattice = _fit_lattice_once(xy, fits)
     if len(lattice.xy) >= OFF_LATTICE_NEIGHBOURS:
         on = _on_lattice(xy, lattice)
         if not on.all():
-            lattice = _fit_lattice_once(xy[on])
+            lattice = _fit_lattice_once(xy[on], fits)
     lattice.panel, lattice.grid = segment_panels(lattice)
     return lattice
 
@@ -545,7 +578,7 @@ def _on_lattice(xy: np.ndarray, lattice: Lattice) -> np.ndarray:
     return votes >= OFF_LATTICE_MAJORITY * np.maximum(counted, 1)
 
 
-def _fit_lattice_once(xy: np.ndarray) -> Lattice:
+def _fit_lattice_once(xy: np.ndarray, fits: dict[bytes, list[np.ndarray]] | None = None) -> Lattice:
     empty = Lattice(np.zeros((0, 2)), np.zeros((0, 2, 2)), np.zeros((0, 2, 2)), np.zeros(0))
     if len(xy) < 3:
         return empty
@@ -561,7 +594,13 @@ def _fit_lattice_once(xy: np.ndarray) -> Lattice:
         if len(own[i]) < 3:
             continue
         pooled = np.vstack([own[k] for k in pool_idx[i] if k >= 0])
-        cands = _fit_candidates(pooled)
+        if fits is None:
+            cands = _fit_candidates(pooled)
+        else:
+            key = pooled.tobytes()
+            if key not in fits:
+                fits[key] = _fit_candidates(pooled)
+            cands = fits[key]
         if cands:
             keep.append(i)
             jacobians.append(cands)
@@ -880,11 +919,12 @@ def panel_homographies(lattice: Lattice) -> dict[int, np.ndarray]:
     return out
 
 
-def metric_at(lattice: Lattice, points: np.ndarray) -> np.ndarray:
+def metric_at(lattice: Lattice, points: np.ndarray, neighbours: tuple[np.ndarray, np.ndarray] | None = None) -> np.ndarray:
     """Metric (M, 2, 2) at arbitrary px points (M, 2): from the homography of
-    the panel most of the nearest bolts belong to, else interpolated."""
+    the panel most of the nearest bolts belong to, else interpolated.
+    `neighbours` = a precomputed knn(points, lattice.xy, FIELD_NEIGHBOURS)."""
     points = np.asarray(points, dtype=np.float64).reshape(-1, 2)
-    idx, dist = knn(points, lattice.xy, FIELD_NEIGHBOURS)
+    idx, dist = neighbours if neighbours is not None else knn(points, lattice.xy, FIELD_NEIGHBOURS)
     valid = idx >= 0
     safe = np.maximum(idx, 0)
     soften = lattice.spacing_px[safe]
@@ -945,19 +985,55 @@ def segment_support(lattice: Lattice, starts: np.ndarray, ends: np.ndarray) -> n
     return (dist[:, 0] / spacing).reshape(len(starts), SEGMENT_SAMPLES).max(axis=1)
 
 
+def _lengths_and_support(lattice: Lattice, starts: np.ndarray, ends: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """segment_lengths and segment_support together, for compute_scale's N x N
+    pairs: both sample the same SEGMENT_SAMPLES points per segment, and the
+    support's nearest bolt is the first of the metric's FIELD_NEIGHBOURS, so
+    one neighbour search serves both (slice 13: about a third of the cost of
+    measuring every pair on a photo with ~200 holds)."""
+    starts = np.asarray(starts, dtype=np.float64).reshape(-1, 2)
+    ends = np.asarray(ends, dtype=np.float64).reshape(-1, 2)
+    t = (np.arange(SEGMENT_SAMPLES) + 0.5) / SEGMENT_SAMPLES
+    step = (ends - starts) / SEGMENT_SAMPLES
+    samples = (starts[:, None, :] + t[None, :, None] * (ends - starts)[:, None, :]).reshape(-1, 2)
+    idx, dist = knn(samples, lattice.xy, FIELD_NEIGHBOURS)
+    m = metric_at(lattice, samples, (idx, dist)).reshape(len(starts), SEGMENT_SAMPLES, 2, 2)
+    ds2 = np.einsum("pi,psij,pj->ps", step, m, step)
+    lengths = np.sqrt(np.maximum(ds2, 0.0)).sum(axis=1)
+    spacing = lattice.spacing_px[np.maximum(idx[:, 0], 0)]
+    support = (dist[:, 0] / spacing).reshape(len(starts), SEGMENT_SAMPLES).max(axis=1)
+    return lengths, support
+
+
 def wall_length_units(lattice: Lattice) -> float | None:
-    """Top bolt to bottom bolt within a vertical band of bolts around the
-    median x, plus WALL_END_ALLOWANCE_UNITS at each end. Along the wall surface, so a
-    steep or angled panel counts at its real length, not its height."""
+    """Highest to lowest fitted bolt, measured straight down the photo along
+    WALL_LINE_PERCENTILES vertical lines and averaged, plus
+    WALL_END_ALLOWANCE_UNITS at each end. Along the wall surface, so a steep
+    or angled panel counts at its real length, not its height."""
     if len(lattice.xy) < 2:
         return None
-    x_mid = np.median(lattice.xy[:, 0])
-    band = np.abs(lattice.xy[:, 0] - x_mid) <= WALL_BAND_SPACINGS * np.median(lattice.spacing_px)
-    column = lattice.xy[band]
-    if len(column) < 2:
+    #Slice 16: measured along several fixed vertical lines and averaged. The old rule took one
+    #strip of bolts at the median x and its own top and bottom bolt; a few
+    #borderline bolts appearing or vanishing (even a lossless re-save does
+    #that on hold-covered walls) moved the strip off the top bolts and the
+    #length swung by up to 67% (IMG_7502: 21.1 -> 8.2 units). Wide windows keep
+    #each line on the wall's real top and bottom, and averaging the lines
+    #smooths the borrowed scale where a line crosses a stretch with no visible
+    #bolts (spread 67% -> 7.6%).
+    #Each line's ends come from the bolts within WALL_WINDOW_SPACINGS of it:
+    #wide enough that a few flipped bolts can't pull it off the wall's top,
+    #narrow enough that a distant side patch (a neighbouring wall) can't
+    #become the top or bottom.
+    window = WALL_WINDOW_SPACINGS * np.median(lattice.spacing_px)
+    starts, ends = [], []
+    for x in np.percentile(lattice.xy[:, 0], WALL_LINE_PERCENTILES):
+        near = lattice.xy[np.abs(lattice.xy[:, 0] - x) <= window]
+        if len(near) >= 2 and near[:, 1].max() > near[:, 1].min():
+            starts.append((x, near[:, 1].min()))
+            ends.append((x, near[:, 1].max()))
+    if not starts:
         return None
-    top, bottom = column[np.argmin(column[:, 1])], column[np.argmax(column[:, 1])]
-    return float(segment_lengths(lattice, top, bottom)[0] + 2 * WALL_END_ALLOWANCE_UNITS)
+    return float(segment_lengths(lattice, np.array(starts), np.array(ends)).mean() + 2 * WALL_END_ALLOWANCE_UNITS)
 
 
 def index_lattice(lattice: Lattice) -> tuple[np.ndarray, np.ndarray]:
@@ -1110,12 +1186,18 @@ def _hold_angles(lattice: Lattice, hold_xy: np.ndarray, image_size: tuple[int, i
     else:
         down, source, margin = angle.gravity_from_pitch(angle.DEFAULT_PITCH_DEG), "assumed", angle.MARGIN_ASSUMED_DEG
     try:
-        found = angle.angles_at(lattice, hold_xy, image_size, angle.focal_px(image_size, focal_35mm), down)
+        f = angle.focal_px(image_size, focal_35mm)
+        normals, _ = angle.consensus_normals(lattice, angle.bolt_candidates(lattice, image_size, f), hold_xy, down)
+        found = angle.angles_from_normals(normals, down)
         angles = [None if not np.isfinite(a) else round(float(a), 1) for a in found]
+        #Slice 15: per hold, the photo directions of down-the-wall and across,
+        #so /analysis can split each move into up and across parts.
+        axes = angle.wall_axes(normals, down, hold_xy, image_size, f)
+        wall_axes = [None if not np.isfinite(a).all() else np.round(a, AXES_DECIMALS).tolist() for a in axes]
     except Exception:  # noqa: BLE001 - see docstring
         logging.getLogger(__name__).exception("scale: wall angle failed")
-        return {"angles_deg": None, "angle_source": None, "angle_margin_deg": None}
-    return {"angles_deg": angles, "angle_source": source, "angle_margin_deg": margin}
+        return {"angles_deg": None, "angle_source": None, "angle_margin_deg": None, "wall_axes": None}
+    return {"angles_deg": angles, "angle_source": source, "angle_margin_deg": margin, "wall_axes": wall_axes}
 
 
 def _tier_rows(support: np.ndarray) -> list[str]:
@@ -1158,9 +1240,9 @@ def compute_scale(
     support = np.zeros((n, n))
     if n > 1:
         a, b = np.triu_indices(n, k=1)
-        lengths = segment_lengths(lattice, hold_xy[a], hold_xy[b])
+        lengths, pair_support = _lengths_and_support(lattice, hold_xy[a], hold_xy[b])
         distances[a, b] = distances[b, a] = lengths
-        support[a, b] = support[b, a] = segment_support(lattice, hold_xy[a], hold_xy[b])
+        support[a, b] = support[b, a] = pair_support
 
     wall = wall_length_units(lattice)
     return {
@@ -1181,6 +1263,16 @@ def select_angles(scale: dict, detections: list[dict], hold_ids: list[int]) -> l
         return None
     index_of = {d["id"]: i for i, d in enumerate(detections)}
     return [angles[index_of[hold_id]] for hold_id in hold_ids]
+
+
+def select_axes(scale: dict, detections: list[dict], hold_ids: list[int]) -> list | None:
+    """scale["wall_axes"] for hold_ids, in hold_ids order, like select_angles.
+    None when the scale has none (an older cached scale)."""
+    axes = scale.get("wall_axes")
+    if axes is None:
+        return None
+    index_of = {d["id"]: i for i, d in enumerate(detections)}
+    return [axes[index_of[hold_id]] for hold_id in hold_ids]
 
 
 def select_tiers(scale: dict, detections: list[dict], hold_ids: list[int]) -> list[list[str]] | None:

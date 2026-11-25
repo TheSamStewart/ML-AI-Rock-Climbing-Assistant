@@ -281,3 +281,128 @@ def test_wall_angle_uses_the_down_vector_given():
 
     assert min(abs(a - 14) for a in right) < 1.0
     assert min(abs(a - 14) for a in wrong) > 5.0
+
+
+# --- the vote across neighbouring bolts (consensus_normals), slice 12 --------
+# Written by the Developer, not the spec-only Tester: the vote had no unit test
+# (handover, slice 9 known issues). Bolts on synthetic walls seen through the
+# same pinhole camera as above; only the bolts' px positions and candidate
+# normals feed the vote, so a plain namespace stands in for scale.Lattice.
+
+from types import SimpleNamespace
+
+
+def _bolts(rows, cols, x0=300, x1=3700, y0=200, y1=2800):
+    xs, ys = np.linspace(x0, x1, cols), np.linspace(y0, y1, rows)
+    return np.array([(x, y) for y in ys for x in xs])
+
+
+def _candidates(xy, wall_at, tilt):
+    """(N, 2, 3) mirror candidates per bolt; wall_at(x, y) -> that bolt's wall angle."""
+    return np.stack([np.stack(angle.plane_normals(_synth(wall_at(x, y), tilt, (x, y))[0], (x, y), SIZE, F)) for x, y in xy])
+
+
+def _vote(xy, cands, points, tilt):
+    down = angle.gravity_from_pitch(tilt)
+    normals, voters = angle.consensus_normals(SimpleNamespace(xy=xy), cands, np.asarray(points, float), down)
+    return angle.angles_from_normals(normals, down), voters
+
+
+@pytest.mark.parametrize("tilt", [0, 12, 25])
+@pytest.mark.parametrize("wall", [-20, 0, 14, 31, 45])
+def test_vote_recovers_a_flat_wall_everywhere_including_slabs(wall, tilt):
+    # One bolt cannot tell the true normal from its mirror; across a panel the
+    # true one is shared while the mirror moves, so the vote must find the true
+    # wall - a slab must come back as a slab, not as its overhanging mirror.
+    xy = _bolts(9, 12)
+    cands = _candidates(xy, lambda x, y: wall, tilt)
+
+    angles, voters = _vote(xy, cands, POINTS, tilt)
+
+    assert np.all(np.isfinite(angles)), angles
+    assert np.abs(angles - wall).max() < 1.0, (wall, tilt, angles)
+    assert np.all(voters >= angle.MIN_SUPPORT)
+
+
+def test_vote_keeps_two_panels_apart_across_a_fold():
+    # Top half 14 deg, bottom half 31 deg: a point well inside each half gets its own panel's angle.
+    xy = _bolts(14, 12)
+    cands = _candidates(xy, lambda x, y: 14 if y < CY else 31, 12)
+
+    angles, _ = _vote(xy, cands, [(CX, 500), (CX - 1200, 600), (CX, 2500), (CX + 1200, 2400)], 12)
+
+    assert angles[:2] == pytest.approx([14, 14], abs=1.0)
+    assert angles[2:] == pytest.approx([31, 31], abs=1.0)
+
+
+def test_vote_gives_no_angle_when_two_different_walls_tie():
+    # Every bolt offers the same two clearly different normals, so each is backed
+    # by every other bolt: a coin flip, which must not be reported as a wall angle.
+    xy = _bolts(8, 8)
+    a = np.array([0.0, 0.2, -1.0]) / np.linalg.norm([0.0, 0.2, -1.0])
+    b = np.array([0.0, -0.4, -1.0]) / np.linalg.norm([0.0, -0.4, -1.0])
+    assert math.degrees(math.acos(a @ b)) > angle.MIRROR_MIN_SEP_DEG
+    cands = np.tile(np.stack([a, b])[None], (len(xy), 1, 1))
+
+    angles, voters = _vote(xy, cands, [(CX, CY)], 12)
+
+    assert np.isnan(angles[0]) and voters[0] == 0
+
+
+def test_vote_breaks_a_tie_between_near_identical_normals_towards_overhang():
+    # Two candidates only a few degrees apart are the same wall within noise
+    # (the mirrors nearly coincide in the middle of the frame): still an angle.
+    xy = _bolts(8, 8)
+    a = np.array([0.0, 0.10, -1.0]) / np.linalg.norm([0.0, 0.10, -1.0])
+    b = np.array([0.0, 0.05, -1.0]) / np.linalg.norm([0.0, 0.05, -1.0])
+    assert math.degrees(math.acos(a @ b)) < angle.MIRROR_MIN_SEP_DEG
+    cands = np.tile(np.stack([a, b])[None], (len(xy), 1, 1))
+
+    angles, _ = _vote(xy, cands, [(CX, CY)], 12)
+
+    assert np.isfinite(angles[0])
+
+
+def test_vote_gives_no_angle_on_thin_evidence():
+    # Enough bolts to vote (MIN_VOTERS) but fewer than MIN_SUPPORT agreeing: no angle.
+    n = angle.MIN_SUPPORT - 1
+    assert n >= angle.MIN_VOTERS
+    xy = _bolts(1, n, y0=CY, y1=CY)
+    cands = _candidates(xy, lambda x, y: 20, 12)
+
+    angles, voters = _vote(xy, cands, [(CX, CY)], 12)
+
+    assert np.isnan(angles[0]) and voters[0] == 0
+
+
+# --- wall_axes (slice 15, Developer-written) ----------------------------------
+
+@pytest.mark.parametrize("wall,tilt", [(0, 0), (25, 12), (-15, 5), (45, 20)])
+def test_wall_axes_point_down_the_wall_and_to_the_right(wall, tilt):
+    # Moving a point along the wall's fall line / horizontal must move its
+    # image along the returned axes (checked by projecting real 3D points).
+    _, n, down = _synth(wall, tilt, (CX, CY))
+    for pt in POINTS:
+        q = np.array([(pt[0] - CX) / F, (pt[1] - CY) / F, 1.0])
+        P = q * 300.0                                            # a point 3 m out along that ray
+        P = P - n * ((P - q * 300.0) @ n)                        # (already on a plane through it)
+        fall = down - (down @ n) * n
+        fall /= np.linalg.norm(fall)
+        across = np.cross(n, down)
+        across /= np.linalg.norm(across)
+        axes = angle.wall_axes(n[None], down, np.array([pt]), SIZE, F)[0]
+
+        def img(X):
+            return np.array([F * X[0] / X[2] / SIZE[0], F * X[1] / X[2] / SIZE[1]])
+
+        for k, v in enumerate((fall, across)):
+            step = img(P + 0.5 * v) - img(P)
+            cos = step @ axes[k] / (np.linalg.norm(step) * np.linalg.norm(axes[k]))
+            assert abs(cos) > 0.999, (wall, tilt, pt, k, cos)
+        assert (img(P + 0.5 * fall) - img(P)) @ axes[0] > 0      # "down" really is down the wall
+        assert axes[1][0] > 0                                    # across points to the photo's right
+
+
+def test_wall_axes_nan_without_a_normal():
+    axes = angle.wall_axes(np.full((1, 3), np.nan), angle.gravity_from_pitch(10), np.array([[CX, CY]]), SIZE, F)
+    assert np.isnan(axes).all()

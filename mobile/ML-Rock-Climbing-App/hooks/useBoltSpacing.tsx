@@ -5,21 +5,33 @@ import {
   DEFAULT_BOLT_SPACING_CM,
   parseBoltSpacing,
 } from '@/utils/boltSpacing'
+import {
+  BOLT_PATTERN_STORAGE_KEY,
+  BoltPattern,
+  DEFAULT_BOLT_PATTERN,
+  isBoltPattern,
+} from '@/utils/boltPattern'
 
-//The user's bolt grid spacing, persisted on device. Starts at the default
-//and swaps in the stored value once it loads - a missing or corrupt stored
-//value just keeps the default.
+//The user's bolt grid, persisted on device: boltSpacingCm is always the side
+//of a square with a centre hole (what the backend and the distance labels
+//use), whatever pattern was picked - the pattern (slice 16) only changes
+//what the user measures in Settings. Starts at the defaults and swaps in
+//the stored values once they load; a missing or corrupt value keeps the
+//default, so existing users stay on "squares with a centre hole".
 
 export function useBoltSpacing() {
   const [boltSpacingCm, setBoltSpacingCmState] = useState(DEFAULT_BOLT_SPACING_CM)
+  const [boltPattern, setBoltPatternState] = useState<BoltPattern>(DEFAULT_BOLT_PATTERN)
 
   useEffect(() => {
     let cancelled = false
 
-    AsyncStorage.getItem(BOLT_SPACING_STORAGE_KEY)
-      .then((stored) => {
+    AsyncStorage.multiGet([BOLT_SPACING_STORAGE_KEY, BOLT_PATTERN_STORAGE_KEY])
+      .then(([[, stored], [, pattern]]) => {
+        if (cancelled) return
         const parsed = parseBoltSpacing(stored)
-        if (!cancelled && parsed !== null) setBoltSpacingCmState(parsed)
+        if (parsed !== null) setBoltSpacingCmState(parsed)
+        if (isBoltPattern(pattern)) setBoltPatternState(pattern)
       })
       .catch((err) => console.error('Failed to load bolt spacing', err))
 
@@ -30,12 +42,14 @@ export function useBoltSpacing() {
 
   //State updates immediately so the UI never waits on storage.
 
-  const setBoltSpacingCm = (value: number) => {
-    setBoltSpacingCmState(value)
-    AsyncStorage.setItem(BOLT_SPACING_STORAGE_KEY, String(value)).catch((err) =>
-      console.error('Failed to save bolt spacing', err)
-    )
+  const setBoltSettings = (squareSideCm: number, pattern: BoltPattern) => {
+    setBoltSpacingCmState(squareSideCm)
+    setBoltPatternState(pattern)
+    AsyncStorage.multiSet([
+      [BOLT_SPACING_STORAGE_KEY, String(squareSideCm)],
+      [BOLT_PATTERN_STORAGE_KEY, pattern],
+    ]).catch((err) => console.error('Failed to save bolt spacing', err))
   }
 
-  return { boltSpacingCm, setBoltSpacingCm }
+  return { boltSpacingCm, boltPattern, setBoltSettings }
 }

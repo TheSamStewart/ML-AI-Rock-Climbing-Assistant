@@ -189,14 +189,23 @@ def _outside_holds(cands: np.ndarray, detections: list[dict], shape: tuple[int, 
 
 def knn(query: np.ndarray, train: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
     """Exact k nearest neighbours (brute force in C). Returns (indices, distances),
-    each (len(query), k), padded with -1 / inf when train has fewer than k points."""
+    each (len(query), k), padded with -1 / inf when train has fewer than k points.
+
+    The matches are copied out in bulk (slice 13): copying them one by one in
+    Python cost as much as the search itself on segment_lengths' ~300k sample
+    points. A pure-numpy search was tried and was 3x slower at that size."""
     k_eff = min(k, len(train))
     idx = np.full((len(query), k), -1)
     dist = np.full((len(query), k), np.inf)
     if k_eff == 0 or len(query) == 0:
         return idx, dist
     matches = cv2.BFMatcher(cv2.NORM_L2).knnMatch(query.astype(np.float32), train.astype(np.float32), k=k_eff)
-    for r, row in enumerate(matches):
+    flat = [m for row in matches for m in row]
+    if len(flat) == len(query) * k_eff:
+        idx[:, :k_eff] = np.fromiter((m.trainIdx for m in flat), dtype=np.int64, count=len(flat)).reshape(-1, k_eff)
+        dist[:, :k_eff] = np.fromiter((m.distance for m in flat), dtype=np.float64, count=len(flat)).reshape(-1, k_eff)
+        return idx, dist
+    for r, row in enumerate(matches):  # a short row: fill one by one
         for c, m in enumerate(row):
             idx[r, c] = m.trainIdx
             dist[r, c] = m.distance
@@ -335,13 +344,10 @@ def _spacing_filter(bolts: np.ndarray) -> np.ndarray:
     return bolts
 
 
-def detect_bolt_holes(image, detections: list[dict]) -> list[dict]:
-    """PIL image (full resolution, same orientation the detections were made
-    in) + /detect's detections -> [{"x", "y", "diameter"}, ...].
-
-    x, y are normalized (0-1) like detection centroids; diameter is in
-    full-res pixels of `image`. Order is not meaningful.
-    """
+def find_candidates(image) -> dict:
+    """The part of bolt detection that needs only the photo: grey, shrunk to
+    MAX_SIDE, and the blob candidates. /detect runs it at the same time as
+    YOLO (slice 13) and hands the result to detect_bolt_holes."""
     gray = np.asarray(image.convert("L"))
     h0, w0 = gray.shape
     shrink = max(h0, w0) / MAX_SIDE
@@ -349,9 +355,24 @@ def detect_bolt_holes(image, detections: list[dict]) -> list[dict]:
         gray = cv2.resize(gray, (round(w0 / shrink), round(h0 / shrink)), interpolation=cv2.INTER_AREA)
     else:
         shrink = 1.0
+    return {"gray": gray, "shrink": shrink, "cands": _candidates(gray), "size": image.size}
+
+
+def detect_bolt_holes(image, detections: list[dict], candidates: dict | None = None) -> list[dict]:
+    """PIL image (full resolution, same orientation the detections were made
+    in) + /detect's detections -> [{"x", "y", "diameter"}, ...].
+
+    x, y are normalized (0-1) like detection centroids; diameter is in
+    full-res pixels of `image`. Order is not meaningful. `candidates` is
+    find_candidates(image), when already computed; anything else (or another
+    image's) is ignored and recomputed.
+    """
+    if candidates is None or candidates.get("size") != image.size:
+        candidates = find_candidates(image)
+    gray, shrink = candidates["gray"], candidates["shrink"]
     h, w = gray.shape
 
-    cands = _candidates(gray)
+    cands = candidates["cands"].copy()
     if len(cands):
         cands = _outside_holds(cands, detections, (h, w))
     if len(cands):

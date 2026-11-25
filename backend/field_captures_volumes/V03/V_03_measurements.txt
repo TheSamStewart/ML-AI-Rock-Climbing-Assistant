@@ -1,0 +1,31 @@
+Angles
+
+1 19
+2 4
+3 -20
+
+Lengths
+
+1
+
+L 84
+R 66
+Bottom 42
+
+2
+
+L 66
+R 82
+Bottom 42
+
+3
+
+L 42
+R 82
+Bottom 42
+
+4
+
+Depth 25
+
+wall angle 11

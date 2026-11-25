@@ -37,6 +37,8 @@ measurements at all.
 Usage (from backend/):
   uv run python eval_volume_field.py                       # every folder in field_captures/
   uv run python eval_volume_field.py path/to/capture ...   # chosen folders
+  uv run python eval_volume_field.py field_captures_volumes/V0*   # measured volumes, A/B/edge photos
+                                                           #   (volume.json; see load_volume_folder)
   uv run python eval_volume_field.py --survey              # also fit unmeasured VOLUME detections
   uv run python eval_volume_field.py --volume-conf 0.05    # lower YOLO's VOLUME floor
 Overlays (one crop per volume) go to <temp>/eval_volume_field unless --out.
@@ -390,10 +392,61 @@ def survey_overlay(image, dets: list[dict], path: Path) -> None:
 # per capture
 # -------------------------------------------------------------------------
 
-def run(folder: Path, args, out_dir: Path) -> list[dict]:
-    cap = load(folder)
+def _facing_from_points(points: str | None) -> str | None:
+    """volume.json's free-text 'points' (left / right / up / down / at me, or
+    a mix) as the matcher's facing. describe_face's facing is the turn about
+    gravity, so up / down / at me all mean 'out'; a mix of a side with
+    anything else is ambiguous, and is left unset (steepness alone matches)."""
+    words = {w.strip() for w in (points or "").lower().split(",") if w.strip()}
+    sides = words & {"left", "right"}
+    if not words:
+        return None
+    if sides:
+        return sides.pop() if words == sides else None
+    return "out"
+
+
+def load_volume_folder(folder: Path) -> list[dict]:
+    """One capture per photo in a field_captures_volumes/ folder (photo_A,
+    photo_B, photo_edge), in the shape run() takes. The truth is volume.json,
+    converted to a truth.json 'volumes' entry; the volume's id on each photo is
+    `detection_ids[role]` (ids of the day's /detect in capture.json). Faces with
+    `"score": false` are left out of the scoring."""
+    vol = json.loads((folder / "volume.json").read_text(encoding="utf-8"))
+    capture = json.loads((folder / "capture.json").read_text(encoding="utf-8"))
+    ids = vol.get("detection_ids") or {}
+    faces = [{"name": f"{f.get('number')} {f.get('name', '')}".strip(),
+              "angle_deg": f.get("angle_deg") if f.get("score", True) else None,
+              "facing": _facing_from_points(f.get("points"))}
+             for f in vol.get("faces") or []]
+    caps = []
+    for entry in capture.get("photos") or []:
+        role = entry["role"]
+        raw = Image.open(folder / entry["file"])
+        image = ImageOps.exif_transpose(raw)
+        image.load()
+        image = image.convert("RGB")
+        v = {"id": f"{vol['volume']}-{role}", "detection_id": ids.get(role),
+             "shape": vol.get("shape"), "faces": faces, "depth_cm": vol.get("depth_cm"),
+             "wall_angle_deg": vol.get("wall_angle_beside_deg")}
+        f35 = (entry.get("photo") or {}).get("focal_35mm")
+        caps.append({"folder": folder, "name": f"{folder.name}-{role}", "image": image,
+                     "capture": {"sensor": entry.get("sensor"),
+                                 "detections": (entry.get("detect") or {}).get("detections") or []},
+                     "truth": {"volumes": [v] if v["detection_id"] is not None else [],
+                               "bolt_spacing_cm_measured": vol.get("bolt_spacing_cm")},
+                     "focal_35mm": float(f35) if f35 else None})
+    return caps
+
+
+def run(folder: Path, args, out_dir: Path, cap: dict | None = None) -> list[dict]:
+    """Score one capture. `cap` is an already-loaded capture (a volume folder's
+    photo, see load_volume_folder); without it the old one-photo folder is
+    loaded."""
+    cap = cap or load(folder)
     if cap is None:
         return []
+    label = cap.get("name", folder.name)
     image, truth = cap["image"], cap["truth"]
     size = image.size
     measured = truth.get("volumes") or []
@@ -408,8 +461,8 @@ def run(folder: Path, args, out_dir: Path) -> list[dict]:
     K = volume.camera_matrix(size, f)
     gray = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2GRAY)
     spacing = float(truth.get("bolt_spacing_cm_measured") or DEFAULT_BOLT_SPACING_CM)
-    survey_overlay(image, dets, out_dir / f"{folder.name}__ids.jpg")
-    print(f"\n{folder.name}: {len(found)} bolts, {len(dets)} detections"
+    survey_overlay(image, dets, out_dir / f"{label}__ids.jpg")
+    print(f"\n{label}: {len(found)} bolts, {len(dets)} detections"
           f" ({sum(d['class_name'] == 'VOLUME' for d in dets)} VOLUME at floor {args.volume_conf:g}),"
           f" focal {'EXIF ' + format(cap['focal_35mm'], 'g') if cap['focal_35mm'] else 'default'},"
           f" spacing {spacing:g} cm, {time.perf_counter() - t0:.1f} s")
@@ -483,7 +536,7 @@ def run(folder: Path, args, out_dir: Path) -> list[dict]:
         for name, fit in fits.items():
             faces = match(v.get("faces") or [], fit)
             depth_err = (fit["depth_cm"] - v["depth_cm"]) if (fit and v.get("depth_cm")) else None
-            row = {"capture": folder.name, "volume": v["id"], "path": name,
+            row = {"capture": label, "volume": v["id"], "path": name,
                    "measured": v["_measured"], "fit": fit is not None,
                    "trusted": bool(fit and fit["trusted"]), "faces": faces,
                    "depth_err": None if name == "depth" else depth_err,
@@ -508,8 +561,8 @@ def run(folder: Path, args, out_dir: Path) -> list[dict]:
             if not faces:
                 print("           " + ", ".join(f"{f['steepness_deg']:+.1f} {f['facing']}"
                                                 for f in fit["faces"] if f["visible"]))
-        overlay(image, mask, fits, K, f"{folder.name} {v['id']} wall {wall_est:+.1f}",
-                out_dir / f"{folder.name}__{v['id']}.jpg",
+        overlay(image, mask, fits, K, f"{label} {v['id']} wall {wall_est:+.1f}",
+                out_dir / f"{label}__{v['id']}.jpg",
                 None if base_px is None else (base_px, raised_px))
     return rows
 
@@ -527,7 +580,11 @@ def main() -> None:
 
     rows = []
     for folder in folders:
-        rows += run(folder, args, args.out)
+        if (folder / "volume.json").exists():
+            for cap in load_volume_folder(folder):
+                rows += run(folder, args, args.out, cap)
+        else:
+            rows += run(folder, args, args.out)
 
     print("\nSUMMARY")
     for path in ("full", "oracle", "depth"):

@@ -22,7 +22,7 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 //Ray-casting point-in-polygon test in normalized (0-1) coordinates.
 
-function isPointInPolygon(point: { x: number; y: number }, polygon: { x: number; y: number }[]) {
+export function isPointInPolygon(point: { x: number; y: number }, polygon: { x: number; y: number }[]) {
   let inside = false
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const { x: xi, y: yi } = polygon[i]

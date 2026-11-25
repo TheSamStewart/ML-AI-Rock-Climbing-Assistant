@@ -131,6 +131,18 @@ def wall_angle_deg(normals: list[np.ndarray], gravity: np.ndarray) -> float | No
 VOTE_NEIGHBOURS = 50   # bolts pooled around a point to find the wall's normal
 VOTE_TOLERANCE_DEG = 5.0   # two bolts agree on a normal when within this angle
 MIN_VOTERS = 6
+#Confidence (slice 12): no angle rather than a coin flip. A point gets no
+#angle when fewer than MIN_SUPPORT bolts back the winner (thin evidence), or
+#when a genuinely different wall direction (more than MIRROR_MIN_SEP_DEG away;
+#closer rivals are the same wall within noise) is backed nearly as well
+#(TIE_RATIO of the winner's support). Calibrated on the 15 field captures and
+#the reference panels (eval_field.py, eval_angle.py): the weakest real votes
+#had rival/winner 0.70-0.78 and were still within 3-6 deg of the truth, and
+#the smallest winner had 20 backers, so these only catch true ties and sparse
+#bolts - nothing that is right today is dropped.
+MIN_SUPPORT = 10
+MIRROR_MIN_SEP_DEG = 10.0
+TIE_RATIO = 0.85
 
 
 def bolt_candidates(lattice, size: tuple[int, int], f: float) -> np.ndarray:
@@ -159,9 +171,11 @@ def consensus_normals(lattice, candidates: np.ndarray, points: np.ndarray, gravi
     One bolt's metric leaves two mirror normals; the true one is the same for
     every bolt on the same flat panel, while the mirror one moves with the
     bolt's position in the frame. So the normal that most of the nearest
-    bolts can agree on is the true one. Where both mirror candidates are
-    backed equally (near the middle of the frame, where the two coincide
-    with a plain up/down tilt ambiguity) the overhanging one wins."""
+    bolts can agree on is the true one. Where the top candidates are backed
+    equally but point the same way within MIRROR_MIN_SEP_DEG (near the middle
+    of the frame the two mirrors nearly coincide) the overhanging one wins.
+    No normal (NaN, 0 voters) when the evidence is thin or two genuinely
+    different directions tie - see MIN_SUPPORT / TIE_RATIO."""
     import scale
 
     points = np.asarray(points, dtype=float).reshape(-1, 2)
@@ -171,6 +185,7 @@ def consensus_normals(lattice, candidates: np.ndarray, points: np.ndarray, gravi
         return normals, voters
     idx, _ = scale.knn(points, lattice.xy, VOTE_NEIGHBOURS)
     cos_tol = np.cos(np.radians(VOTE_TOLERANCE_DEG))
+    cos_sep = np.cos(np.radians(MIRROR_MIN_SEP_DEG))
     for row, near in enumerate(idx):
         near = near[near >= 0]
         pool = candidates[near]                      # (k, 2, 3)
@@ -191,11 +206,46 @@ def consensus_normals(lattice, candidates: np.ndarray, points: np.ndarray, gravi
         best = np.max(support)
         top = np.flatnonzero(support >= best)
         pick = top[np.argmax(flat[top] @ gravity)]   # overhang breaks ties
+        if support[pick] + 1 < MIN_SUPPORT:
+            continue                                 # thin evidence: no angle
+        rivals = (flat @ flat[pick]) < cos_sep       # a genuinely different wall direction
+        if rivals.any() and support[rivals].max() >= TIE_RATIO * support[pick]:
+            continue                                 # coin flip between two walls: no angle
         group = flat[close[pick]]
         n = group.mean(axis=0)
         normals[row] = n / np.linalg.norm(n)
         voters[row] = support[pick] + 1
     return normals, voters
+
+
+def wall_axes(normals: np.ndarray, gravity: np.ndarray, points: np.ndarray, size: tuple[int, int], f: float) -> np.ndarray:
+    """(M, 2, 2) per px point: the photo directions of "down the wall" and
+    "across the wall, to the right", in normalised photo coordinates (x / width,
+    y / height), NaN where the point has no normal. Slice 15.
+
+    Down the wall is gravity with its part along the wall normal removed (the
+    fall line); across is the wall's horizontal, n x g, signed to point to the
+    photo's right. A 3D direction v at a point whose normalised camera
+    coordinates are q moves the image by (f/Z) (v_xy - q v_z); both axes share
+    f/Z at a point, so they are kept to that common scale (not unit length)
+    and a photo displacement can be split into its down/across parts by
+    solving a 2 x 2 system."""
+    width, height = size
+    pts = np.asarray(points, dtype=float).reshape(-1, 2)
+    q = np.column_stack([(pts[:, 0] - width / 2) / f, (pts[:, 1] - height / 2) / f])
+    n = np.asarray(normals, dtype=float).reshape(-1, 3)
+    g = np.asarray(gravity, dtype=float)
+    down = g[None, :] - (n @ g)[:, None] * n
+    down /= np.linalg.norm(down, axis=1, keepdims=True)
+    across = np.cross(n, g[None, :])
+    across /= np.linalg.norm(across, axis=1, keepdims=True)
+    axes = np.full((len(pts), 2, 2), np.nan)
+    for k, v in enumerate((down, across)):
+        img = v[:, :2] - q * v[:, 2:3]                   # px direction, up to f/Z
+        axes[:, k] = img / np.array([width, height])     # into normalised photo coordinates
+    flip = axes[:, 1, 0] < 0                             # across points to the photo's right
+    axes[flip, 1] *= -1
+    return axes
 
 
 def angles_from_normals(normals: np.ndarray, gravity: np.ndarray) -> np.ndarray:

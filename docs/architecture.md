@@ -42,7 +42,7 @@ Currently:
 
 Responses: `422` `Upload file isnt readable` if non image/corrupt upload. If YOLO inference fails `500` `Hold detection failed`; if bolts or scale fail `500` `Wall scale estimation failed`. Redis cache write failure `503` `couldnt save detection results`. Valid photo returns 200 with `{detection_id, detections, scale}`.
 
-`scale` holds `status` (`ok` / `insufficient_bolts`), `bolt_count`, `wall_length_units`, `distances_units` (N×N, same order as `detections`), `tiers` (N strings of `A`/`C`), `angles_deg` (one per detection, + overhang / − slab), `angle_source` (`sensor` / `assumed`) and `angle_margin_deg`. Units are bolt spacings; the app and the worker multiply by the user's bolt spacing.
+`scale` holds `status` (`ok` / `insufficient_bolts`), `bolt_count`, `wall_length_units`, `distances_units` (N×N, same order as `detections`), `tiers` (N strings of `A`/`C`), `angles_deg` (one per detection, + overhang / − slab), `angle_source` (`sensor` / `assumed`), `angle_margin_deg` and `wall_axes` (per detection, the photo directions of "down the wall" and "across", used to split moves into up/across; absent when no bolts were found). Units are bolt spacings; the app and the worker multiply by the user's bolt spacing.
 
 
 ### `POST /analysis`
@@ -52,6 +52,7 @@ Responses: `422` `Upload file isnt readable` if non image/corrupt upload. If YOL
 | `detection_id` | form field | required, from a prior `/detect` response |
 | `selected_hold_ids` | form field | required, JSON array of ints - hold ids from that `/detect` response the user selected |
 | `bolt_spacing_cm` | form field | optional, default 20, range 10–50. Empty returns `422` "No bolt spacing provided." |
+| `climber_height_cm`, `climber_arm_span_cm` | form fields | optional (absent or empty = not set), ranges 100–230 and 90–250. Anything else returns `422` |
 
 Responses: `202` `{task_id}` on success · `422` if fewer than the minimum hold count is
 selected or a selected id isn't in the cached detections · `410` if `detection_id` is
@@ -97,6 +98,7 @@ ML-AI-Rock-Climbing-Assistant/
 │   ├── angle.py                      # wall steepness at each hold, from the bolt grid + phone tilt
 │   ├── volume.py                     # volume face angles (not wired into the API yet, slice 14)
 │   ├── eval_scale.py, eval_angle.py  # dev-only: accuracy reports against the reference photos
+│   ├── eval_field.py                 # dev-only: replays the real-phone field captures; run before/after any change
 │   ├── eval_volume.py, fakewall.py   # dev-only: synthetic walls with volumes, and their scoring
 │   ├── eval_volume_field.py          # dev-only: volume fits on the real field photos
 │   ├── draw_volume_corners.py        # dev-only: click volume corners to record ground truth
@@ -129,7 +131,8 @@ ML-AI-Rock-Climbing-Assistant/
     │   │                              # distance labels between picks and ≈N° wall angle per hold, submits to /analysis
     │   ├── ModeSlider.tsx             # swipeable camera-mode carousel next to the shutter
     │   ├── SettingsButton.tsx         # ⚙ button over the camera and PhotoPreview
-    │   ├── SettingsModal.tsx          # settings screen: bolt spacing (validated as you type)
+    │   ├── SettingsModal.tsx          # settings screen: bolt pattern + spacing, climber height + arm span (validated as you type)
+    │   ├── BoltPatternGraphic.tsx     # small drawing of each bolt pattern, with the distance to measure
     │   └── AnalysisResult.tsx         # renders polling status/error/timeout text, or the coaching steps list on success
     ├── hooks/
     │   ├── useDetectHolds.tsx         # useMutation wrapper around detectHolds (POST /detect)
@@ -137,6 +140,7 @@ ML-AI-Rock-Climbing-Assistant/
     │   ├── useGetClimbAnalysis.tsx    # useQuery wrapper around getClimbAnalysis; polls every
     │   │                              # 2s while PENDING/STARTED/RETRY, gives up after 30s
     │   ├── useBoltSpacing.tsx         # bolt spacing saved on the phone (AsyncStorage), default 20 cm
+    │   ├── useClimberStats.tsx        # climber height + arm span saved on the phone, both optional
     │   └── useGravityReading.tsx      # smoothed accelerometer reading, taken at the shutter
     ├── api/
     │   ├── detectHolds.tsx            # builds multipart FormData (photo), POSTs /detect; exports the Detection type
@@ -144,7 +148,9 @@ ML-AI-Rock-Climbing-Assistant/
     │   └── getClimbAnalysis.tsx       # GETs /analysis/{task_id}, typed by status union; exports ClimbStep/ClimbAnalysis types
     ├── utils/
     │   ├── holdMatching.ts            # client-side tap -> detection resolution (point-in-polygon + nearest-centroid)
-    │   └── boltSpacing.ts             # bolt spacing limits (kept in sync with main.py) + cm/m formatting
+    │   ├── boltSpacing.ts             # bolt spacing limits (kept in sync with main.py) + cm/m formatting
+    │   ├── boltPattern.ts             # the three bolt patterns and their conversion to the backend's square side
+    │   └── climberStats.ts            # climber height/arm span limits (kept in sync with main.py) + parsing
     └── assets/
         ├── images/                    # camera preview assets
         └── known_measurements/        # reference photos + tape/angle ground truth used by tests and eval scripts
@@ -165,6 +171,9 @@ Everything the coaching AI (the LLM) receives when it writes the climbing steps.
 | ☑ | Wall length | Top to bottom of the wall that is in the photo, in cm. This is only the part in the photo, not the whole wall. |
 | ☑ | Wall steepness at each hold with margin for error | Degrees from upright: positive means the wall leans out over the climber, negative means it leans back. Uses the phone's tilt when the photo was taken. |
 | ☑ | How to coach | Be a friendly coach; give the start position, then one move per step with a short reason; use plain language; describe holds by where they are, not their number; never invent holds. |
-| ☐ | | |
-| ☐ | | |
-| ☐ | | |
+| ☑ | Each move, split into up and across | For each move in pick order: its length, how much of it is up (or down) the wall and how much is sideways, in cm along the wall. Also where each hold is from the first picked hold. Slice 15. |
+| ☑ | Wall angle change during a move | The steepness at both ends of each move, and a note when the wall gets clearly steeper or less steep (e.g. "steeper: 20 to 54.5 degrees"). Slice 15. |
+| ☑ | The climber's height and arm span | Optional, entered in Settings, with the ape index worked out (arm span minus height). Slice 15. |
+| ☐ | Whether a hold is on a volume, and the volume's size | Waits on slice 14 (needs the volume retrain). |
+| ☐ | Where a hold is located on a volume | Helps when a hold on a volume is used to mount or as a foot for example. |
+| ☐ | Hold type | What kind of hold each one is: whether it's a foothold or a handhold, and its type (crimp, jug, sloper, pinch, pocket, edge, etc.). Not built yet; plan in `docs/features/handover.md` → "Parked plans". |

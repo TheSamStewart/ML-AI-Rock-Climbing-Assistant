@@ -10,6 +10,7 @@ This feature will implement 3 main things:
 ## Inputs
 The picture of the climbing holds from the user, for the purpose of development I have provided images in D:\ML-Rock-Climbing-Coach-App\ML-AI-Rock-Climbing-Assistant\mobile\ML-Rock-Climbing-App\assets\images with known measurements
 
+- Bolt pattern (slice 16, app only): "squares with a centre hole" (default), "plain square grid" or "diamond grid". The last two are the same holes turned 45°, so the app sends `bolt_spacing_cm` = the measured neighbour spacing × √2 and the backend is unchanged.
 - `bolt_spacing_cm`: side length of the bolt grid square, set by the user in the CameraScreen settings panel. Default 20, allowed range 10–50 (raised from 5 on 2026-10-16: bolt detection assumes a grid of roughly 12 cm or wider, see Decisions). Stored on device (AsyncStorage key `boltSpacingCm`).
 
 ## Outputs
@@ -113,7 +114,7 @@ Reference photos (3024×4032) were resized to each height with Lanczos and run t
 At 1500 px, 7500 and 7504 find 0 bolts. At 2000 px they find 106 and 43, and the wall length comes out about half the true value.
 
 - **Requirement:** about **6 px per cm of wall** or more. That means a bolt hole at least 7 px across and neighbouring bolts at least 90 px apart (≈ 110 px at the default 20 cm spacing). For a photo framing a whole wall, this is about **3200 px on the long side**. Below it, bolts drop out unevenly, so the lattice covers only part of the wall and the wall length collapses: 7503 gives 9.8 u at 2400 px against 19.3 u at full res.
-- **Use the native camera resolution** (12 MP, 4032 px). Never resize or recompress uploads in the app. `CustomCamera.tsx` already pins the largest `pictureSize`. Resolutions above 12 MP are untested; they should be no worse, because `bolts.MAX_SIDE` shrinks anything over 4096 px.
+- **Use the native camera resolution** (12 MP, 4032 px). Never resize uploads in the app. **JPEG quality 0.85 is fine** (human-approved 2026-11-24, measured in slice 16: same holds within YOLO's borderline flips, same bolts, angles and tape distances on the 15 field captures, uploads about 4× smaller); quality was never the problem, pixels per cm are. `CustomCamera.tsx` already pins the largest `pictureSize`. Resolutions above 12 MP are untested; they should be no worse, because `bolts.MAX_SIDE` shrinks anything over 4096 px.
 - **More pixels isn't always more accurate above 3200 px.** p95 jumps around between neighbouring sizes (7500 is 7.7% at 3600 px, 7504 is 37.6% at 2800 px) because the lattice choice flips on a few bolts. That's fit robustness, not resolution. It belongs with the IMG_7502 accuracy work (slices 6–8), and slice 13 should keep resolution in mind.
 - A photo taken further away has the same problem as a resized one: fewer pixels per cm. The px/cm rule is the real limit, not the image size.
 - The 640×640 dataset test photo (about 1 px per cm) finds no bolts, which is expected. "Use Test Photo" now loads the full-res IMG_7504.jpeg.
@@ -137,10 +138,10 @@ Renumbered on 2026-11-24 so the numbers follow the timeline (human request). Old
 | 12 (5e) | **Wall-angle fixes.** (1) Group bolts by their own wall direction before assigning holds (fixes epic_wall P14). (2) A confidence per hold: no angle when the evidence is thin or the two mirror answers tie. (3) A synthetic-wall test of the vote. (4) Re-create the field replay script (`eval_field.py`; the first version was removed, its data is in `backend/field_captures/`) as the regression check for every later slice. (5) Score the human's slab photos when they arrive (slab vs overhang mix-up). | P14 within 10° without regressing the other 18 panels in `eval_angle.py`; the confidence rule is tested; the field replay shows no hold angle or distance worse than the "Field test" baseline. |
 | 13 (7) | **Speed.** Time each `/detect` stage; faster YOLO on the server (ONNX/OpenVINO); vectorise the pure-Python loops in `scale.py` and `bolts.py`; shrink the N×N `distances_units` payload (about 300 KB for 200 holds). | `/detect` on a 12 MP photo within **4–5 s** (faster if it costs little; 6.6–15.3 s today); accuracy numbers unchanged. |
 | 14 (6b step 3) | **Volumes, finish.** Spot holds that sit on a volume (needs the volume retrain), and send the trusted volume face angles to the LLM separately from the wall angle. | Every picked hold has an on-volume yes/no; untrusted volumes say nothing; worker test checks the payload. |
-| 15 (8) | **Volume fixes and more coaching information** (plan in "Slice 15"). Part 1: the distance error for holds that stand off the wall (`173933`: +19%). Part 2: hold positions in cm, on-volume flag and size, angle change along a move, climber height and ape index, hold colour. | Part 1: `173933`'s pair inside its tier's percentage margin, no other capture worse. Part 2: each item reaches the payload, the prompt explains it, worker tests check each; architecture.md section 5 rows ticked. |
+| 15 (8) | **Volume fixes and more coaching information** (plan in "Slice 15"). Part 1: the distance error for holds that stand off the wall (`173933`: +19%). Part 2: hold positions in cm, on-volume flag and size, angle change along a move, climber height and ape index (hold colour dropped 2026-11-24: not every gym sets routes in one colour). | Part 1: `173933`'s pair inside its tier's percentage margin, no other capture worse. Part 2: each item reaches the payload, the prompt explains it, worker tests check each; architecture.md section 5 rows ticked. |
 | 16 (9) | **Speed re-check**, planned together with the human, after 14 and 15 add work per photo. | Agreed with the human when planned. |
 | 17 (End) | Final docs: `architecture.md`, `testing.md`, `decisions.md` describe the finished feature in plain language. | The human has reviewed them. |
-| 18 (new) | **Fable review** of all completed work: efficiency, unneeded code, bugs. Checklist in `docs/features/handover.md`. | Fable's findings are fixed or consciously accepted by the human; tests and accuracy numbers unchanged. |
+| 18 (new) | **Fable review** of all completed work: efficiency, unneeded code, bugs, and the coaching prompt (changes for better output). Checklist in `docs/features/handover.md`. | Fable's findings are fixed or consciously accepted by the human; tests and accuracy numbers unchanged. |
 
 **Order (2026-11-24):** 12 → 13 → 14 → 15 → 16 → 17 → 18. Slice 12 runs before 13 because both change `scale.py` / `angle.py`, and speeding up code that is about to be rewritten wastes the work. Slice 11 is paused on data, not abandoned. Side task: the volume retrain (`volume_retrain.md`), parked until the human has gathered the data; slice 14 needs it.
 
@@ -431,7 +432,7 @@ Proposed go/no-go like 9: median error ≤ 5° on the volume faces with known an
 3. **On a volume** (from 11) and the volume's size in cm.
 4. **Angle change along a move**, e.g. "from 21° onto 54°" (`172816`).
 5. **Climber height and ape index**, entered in the settings panel (new user input, approved by the human 2026-11-19).
-6. **Hold colour**, from the photo's pixels inside each hold's outline: suggest the route's other holds when picking, and send nearby footholds of the route's colour.
+6. ~~**Hold colour**~~: **dropped (human, 2026-11-24)**, as not every gym sets routes in one colour.
 
 Each item is its own step with a worker test; the order inside the slice is proposed when it starts.
 

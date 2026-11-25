@@ -795,7 +795,7 @@ def _dets_at_grid(fwd, grid_pts, image_size=IMAGE_SIZE):
 
 HOLDS_G = [(1.3, 2.2), (4.0, 7.5), (8.2, 3.1), (12.6, 11.4), (2.5, 13.0)]
 
-_KEYS = {"status", "bolt_count", "wall_length_units", "distances_units", "tiers", "angles_deg", "angle_source", "angle_margin_deg"}
+_KEYS = {"status", "bolt_count", "wall_length_units", "distances_units", "tiers", "angles_deg", "angle_source", "angle_margin_deg", "wall_axes"}  # wall_axes: slice 15
 
 
 def _insufficient(n):
@@ -1420,3 +1420,27 @@ def test_reference_photo_in_panel_reach_range_p95_does_not_regress(photo):
     assert len(errs) >= REF_MIN_SCORED_PAIRS * REGRESSION_SEEDS, f"{photo}: only {len(errs)} scored pairs"
     tol = REGRESSION_TOL[photo]
     assert p95 <= base + tol, f"{photo}: p95 {p95:.4f} regressed past baseline {base:.4f} + {tol * 100:.1f} points"
+
+
+# --- other bolt patterns via the app's conversion (slice 16, Developer-written)
+# The app's Settings offer "plain square grid" and "diamond grid": the same
+# holes as squares-with-a-centre-hole turned 45 degrees. The app sends
+# side = measured neighbour spacing x sqrt(2); these check that the fit then
+# gives true distances, so the backend needs no change.
+
+@pytest.mark.parametrize("turn_deg", [0, 45, 12])
+def test_plain_square_grid_measures_true_with_sqrt2_conversion(turn_deg):
+    spacing_cm, px_per_cm = 20.0, 5.0
+    t = np.radians(turn_deg)
+    rot = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+    grid = np.array([(i, j) for i in range(14) for j in range(18)], float) * spacing_cm
+    px = grid @ rot.T * px_per_cm + 400
+    lat = fit_lattice(px)
+    a = np.array([[2, 3]]) * spacing_cm @ rot.T * px_per_cm + 400      # 2 holes across, 3 up from b
+    b = np.array([[9, 11]]) * spacing_cm @ rot.T * px_per_cm + 400
+    true_cm = float(np.hypot(7, 8) * spacing_cm)
+
+    side_cm = spacing_cm * np.sqrt(2)                                  # what the app sends
+    measured_cm = float(segment_lengths(lat, a, b)[0]) * side_cm
+
+    assert measured_cm == pytest.approx(true_cm, rel=0.01)

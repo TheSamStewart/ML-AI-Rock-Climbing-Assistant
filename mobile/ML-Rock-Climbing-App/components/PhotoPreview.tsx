@@ -6,6 +6,7 @@ import {
   Button,
   Image,
   ActivityIndicator,
+  Switch,
   useWindowDimensions,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -16,9 +17,13 @@ import { scheduleOnRN } from 'react-native-worklets'
 import * as Crypto from 'expo-crypto'
 import { useClimbAnalysis } from '@/hooks/useClimbAnalysis'
 import { useDetectHolds } from '@/hooks/useDetectHolds'
-import { matchTapToHold } from '@/utils/holdMatching'
+import { isPointInPolygon, matchTapToHold } from '@/utils/holdMatching'
 import { formatDistance } from '@/utils/boltSpacing'
+import { ClimberStats } from '@/utils/climberStats'
 import { GravityReading } from '@/hooks/useGravityReading'
+import { useVolumeScan } from '@/hooks/useVolumeScan'
+import { ScanFace } from '@/api/volumeScan'
+import { VolumeScanCamera } from '@/components/VolumeScanCamera'
 
 //Handles the captured photo only - preview, retake, and submission to analysis.
 //Knows nothing about camera permissions or capture itself.
@@ -27,6 +32,7 @@ type PhotoPreviewProps = {
   uri: string
   gravity: GravityReading | null
   boltSpacingCm: number
+  climberStats: ClimberStats
   onRetake: () => void
   onSubmitted: (task_id: string) => void
 }
@@ -55,6 +61,18 @@ const LABEL_TEXT_PROPS = {
   alignmentBaseline: 'middle',
 } as const
 
+//Volume scan (test feature): one colour per measured face, and its label -
+//degrees from vertical (+ overhang / - slab) plus an arrow for a face turned
+//left or right. Never remove the degree readout (standing human instruction).
+
+const FACE_COLOURS = ['#00e5ff', '#ff4081', '#ffd600', '#76ff03', '#e040fb', '#ff9100', '#18ffff', '#ffffff']
+
+function faceLabel(face: ScanFace) {
+  const deg = Math.round(face.steepness_deg)
+  const arrow = face.facing === 'left' ? ' ←' : face.facing === 'right' ? ' →' : ''
+  return `${deg > 0 ? '+' : ''}${deg}°${arrow}`
+}
+
 //Clamps a translate offset so the zoomed image can never be panned past its
 //own edges
 
@@ -64,10 +82,22 @@ function clampTranslate(t: number, boxDim: number, s: number) {
   return Math.min(maxT, Math.max(-maxT, t))
 }
 
-export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitted }: PhotoPreviewProps) {
+export function PhotoPreview({
+  uri,
+  gravity,
+  boltSpacingCm,
+  climberStats,
+  onRetake,
+  onSubmitted,
+}: PhotoPreviewProps) {
   //Climb analysis submission - mutate() triggers the POST, state drives the UI
 
   const { mutate, isPending, isError, error } = useClimbAnalysis()
+
+  //Off by default: the app can't see whether the floor and the top of the
+  //wall are both in frame, so only the user's "yes" makes it the full height.
+
+  const [wholeWallInPhoto, setWholeWallInPhoto] = useState(false)
 
   //Detection runs once, as soon as the photo is captured - by the time the
   //user starts tapping, detections should already be in hand so a tap can
@@ -227,6 +257,38 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
     setSelectedHoldIds((prev) => prev.slice(0, -1))
   }
 
+  //Volume scan (test feature, docs/features/volume_scan.md): the most recently
+  //selected VOLUME is the one scanned.
+
+  const [scanOpen, setScanOpen] = useState(false)
+  const {
+    mutate: scanMutate,
+    data: scanData,
+    isPending: isScanning,
+    isError: isScanError,
+    error: scanError,
+  } = useVolumeScan()
+
+  const selectedVolume = useMemo(() => {
+    for (let i = selectedHoldIds.length - 1; i >= 0; i--) {
+      const d = detections.find((det) => det.id === selectedHoldIds[i])
+      if (d?.class_name === 'VOLUME') return d
+    }
+    return null
+  }, [selectedHoldIds, detections])
+
+  const onBurstDone = (frameUris: string[]) => {
+    setScanOpen(false)
+    if (!selectedVolume) return
+    scanMutate({
+      photoUri: uri,
+      frameUris,
+      gravity,
+      volumePolygon: selectedVolume.polygon,
+      boltSpacingCm,
+    })
+  }
+
   //Two-finger pinch to zoom, clamped to [MIN_SCALE, MAX_SCALE].
 
   const pinchGesture = Gesture.Pinch()
@@ -352,11 +414,20 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
                 {selectedHoldIds.map((id) => {
                   const index = indexById.get(id)
                   if (index === undefined) return null
+                  const det = detections[index]
                   const angle = scaleData?.angles_deg?.[index]
-                  if (angle === null || angle === undefined) return null
-                  const x = detections[index].centroid.x * box.width
-                  const y = detections[index].centroid.y * box.height - 18
-                  const label = `≈${Math.round(angle)}°`
+                  //A hold on a scanned volume face also gets that face's angle
+                  //(volume scan test feature); the wall angle stays beside it.
+                  const face =
+                    det.class_name === 'HOLD'
+                      ? scanData?.faces.find((f) => isPointInPolygon(det.centroid, f.outline))
+                      : undefined
+                  const wallLabel = angle === null || angle === undefined ? null : `≈${Math.round(angle)}°`
+                  const faceLabelText = face ? `face ${faceLabel(face)}` : null
+                  if (!wallLabel && !faceLabelText) return null
+                  const x = det.centroid.x * box.width
+                  const y = det.centroid.y * box.height - 18
+                  const label = [wallLabel, faceLabelText].filter(Boolean).join(' · ')
                   return (
                     <G key={`angle-${id}`}>
                       <SvgText x={x} y={y} stroke="black" strokeWidth={4} {...LABEL_TEXT_PROPS}>
@@ -401,6 +472,33 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
                     </G>
                   )
                 })}
+
+                {/* Volume scan result (test feature): each measured face's
+                    outline and angle, drawn last so it sits on top. */}
+
+                {scanData?.faces.map((face, i) => {
+                  if (face.outline.length < 3) return null
+                  const colour = FACE_COLOURS[i % FACE_COLOURS.length]
+                  const cx = (face.outline.reduce((sum, p) => sum + p.x, 0) / face.outline.length) * box.width
+                  const cy = (face.outline.reduce((sum, p) => sum + p.y, 0) / face.outline.length) * box.height
+                  const label = faceLabel(face)
+                  return (
+                    <G key={`face-${i}`}>
+                      <Polygon
+                        points={face.outline.map((p) => `${p.x * box.width},${p.y * box.height}`).join(' ')}
+                        fill="none"
+                        stroke={colour}
+                        strokeWidth={2}
+                      />
+                      <SvgText x={cx} y={cy} stroke="black" strokeWidth={4} {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                      <SvgText x={cx} y={cy} fill={colour} {...LABEL_TEXT_PROPS}>
+                        {label}
+                      </SvgText>
+                    </G>
+                  )
+                })}
               </Svg>
             </Animated.View>
           </View>
@@ -416,6 +514,11 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
             <Text style={styles.hintText}>Detecting holds…</Text>
           </View>
         )}
+        {/* Tells the coach whether the wall length is the full wall's height (slice 16). */}
+        <View style={styles.wholeWallRow}>
+          <Text style={styles.wholeWallText}>Whole wall in the photo (floor to top)</Text>
+          <Switch value={wholeWallInPhoto} onValueChange={setWholeWallInPhoto} />
+        </View>
         <View style={styles.buttonsRow}>
           <Button onPress={onRetake} title="Retake" />
           <Button onPress={undoSelection} title="Undo" disabled={selectedHoldIds.length === 0} />
@@ -429,6 +532,8 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
                   idempotencyKey: Crypto.randomUUID(),
                   selectedHoldIds,
                   boltSpacingCm,
+                  climberStats,
+                  wholeWallInPhoto,
                 },
                 { onSuccess: (data) => onSubmitted(data.task_id) }
               )
@@ -455,7 +560,39 @@ export function PhotoPreview({ uri, gravity, boltSpacingCm, onRetake, onSubmitte
         )}
         {isDetectError && <Text style={styles.errorText}>{detectError.message}</Text>}
         {isError && <Text style={styles.errorText}>{error.message}</Text>}
+
+        {/* Volume scan (test feature) - only with a volume selected */}
+
+        {__DEV__ && selectedVolume && (
+          <View style={styles.scanRow}>
+            <Button
+              title={isScanning ? 'Scanning volume…' : 'Scan volume faces (test)'}
+              onPress={() => setScanOpen(true)}
+              disabled={isScanning}
+            />
+          </View>
+        )}
+        {isScanning && (
+          <Text style={styles.hintText}>Measuring the volume&apos;s faces - this can take a minute</Text>
+        )}
+        {scanData && !isScanning && (
+          <Text style={styles.hintText}>
+            {scanData.faces.length === 0
+              ? 'No faces measured - try again with a slower, wider step'
+              : `${scanData.faces.length} face${scanData.faces.length === 1 ? '' : 's'}` +
+                (scanData.depth_cm !== null ? `, sticks out ≈${Math.round(scanData.depth_cm)} cm` : '') +
+                ` · wall ${Math.round(scanData.wall_angle_deg)}°`}
+            {`\nscan ${scanData.scan_id} · ${scanData.frames_used}/${scanData.frames_sent} photos used`}
+          </Text>
+        )}
+        {isScanError && <Text style={styles.errorText}>{scanError.message}</Text>}
       </SafeAreaView>
+
+      <VolumeScanCamera
+        visible={scanOpen}
+        onDone={onBurstDone}
+        onCancel={() => setScanOpen(false)}
+      />
     </View>
   )
 }
@@ -474,6 +611,16 @@ const styles = StyleSheet.create({
     right: 0,
     paddingVertical: 12,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  wholeWallRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  wholeWallText: {
+    color: 'white',
   },
   detectingRow: {
     flexDirection: 'row',
@@ -496,5 +643,9 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginTop: 8,
+  },
+  scanRow: {
+    marginTop: 8,
+    alignItems: 'center',
   },
 })

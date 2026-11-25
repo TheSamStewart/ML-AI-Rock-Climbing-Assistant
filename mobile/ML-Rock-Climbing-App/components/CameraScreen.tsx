@@ -6,6 +6,7 @@ import { PhotoPreview } from '@/components/PhotoPreview'
 import { SettingsButton } from '@/components/SettingsButton'
 import { SettingsModal } from '@/components/SettingsModal'
 import { useBoltSpacing } from '@/hooks/useBoltSpacing'
+import { useClimberStats } from '@/hooks/useClimberStats'
 import { GravityReading } from '@/hooks/useGravityReading'
 import { useState } from 'react'
 import { Asset } from 'expo-asset'
@@ -38,7 +39,8 @@ export function CameraScreen() {
   //Owned here (not in PhotoPreview) so the settings panel and the distance
   //labels share one value - saving a new spacing relabels PhotoPreview live.
 
-  const { boltSpacingCm, setBoltSpacingCm } = useBoltSpacing()
+  const { boltSpacingCm, boltPattern, setBoltSettings } = useBoltSpacing()
+  const { climberStats, setClimberStats } = useClimberStats()
 
   return (
     <CameraPermissionGate>
@@ -68,6 +70,7 @@ export function CameraScreen() {
             uri={uri}
             gravity={gravity}
             boltSpacingCm={boltSpacingCm}
+            climberStats={climberStats}
             onRetake={() => setUri(null)}
             onSubmitted={(task_id) => setTaskId(task_id)}
           />
@@ -81,7 +84,10 @@ export function CameraScreen() {
         <SettingsModal
           visible={settingsOpen}
           boltSpacingCm={boltSpacingCm}
-          onSave={setBoltSpacingCm}
+          boltPattern={boltPattern}
+          onSave={setBoltSettings}
+          climberStats={climberStats}
+          onSaveClimberStats={setClimberStats}
           onClose={() => setSettingsOpen(false)}
         />
       </View>

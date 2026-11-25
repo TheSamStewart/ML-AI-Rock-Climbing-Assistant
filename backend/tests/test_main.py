@@ -137,7 +137,7 @@ async def test_detect_scale_shape(client, jpeg_bytes, mock_run_detection, mock_b
     response = await _post_detect(client, jpeg_bytes)
 
     s = response.json()["scale"]
-    assert set(s) == {"status", "bolt_count", "wall_length_units", "distances_units", "tiers", *ANGLE_KEYS}
+    assert set(s) == {"status", "bolt_count", "wall_length_units", "distances_units", "tiers", *ANGLE_KEYS, "wall_axes"}  # wall_axes: slice 15
     assert s["status"] == "ok"
     assert s["bolt_count"] == len(FAKE_BOLTS)
     assert isinstance(s["wall_length_units"], float) and s["wall_length_units"] > 0
@@ -710,3 +710,44 @@ async def test_get_analysis_success_returns_steps(client):
 
     assert response.status_code == 200
     assert response.json() == {"task_id": "test-task-id-1234", "status": "SUCCESS", "result": steps}
+
+
+# --- /analysis climber stats (slice 15, Developer-written) --------------------
+
+async def _post_with_climber(client, detection_id, **fields):
+    data = {"detection_id": detection_id, "selected_hold_ids": "[3, 0, 2]", **{k: str(v) for k, v in fields.items()}}
+    return await client.post("/analysis", headers={"Idempotency-Key": f"key-climber-{len(fields)}-{sorted(fields.items())}"}, data=data)
+
+
+async def test_analysis_passes_climber_stats_to_the_worker(client, cached_detection_id, mock_celery_task):
+    response = await _post_with_climber(client, cached_detection_id, climber_height_cm=175, climber_arm_span_cm="181.5")
+
+    assert response.status_code == 202
+    [route] = mock_celery_task.call_args.args
+    assert route["climber"] == {"height_cm": 175.0, "arm_span_cm": 181.5}
+
+
+async def test_analysis_without_climber_stats_has_no_climber_key(client, cached_detection_id, mock_celery_task):
+    response = await _post_with_climber(client, cached_detection_id, climber_height_cm="")
+
+    assert response.status_code == 202
+    [route] = mock_celery_task.call_args.args
+    assert "climber" not in route
+
+
+@pytest.mark.parametrize("field,value", [("climber_height_cm", 40), ("climber_height_cm", "tall"), ("climber_arm_span_cm", 400), ("climber_arm_span_cm", "nan")])
+async def test_analysis_rejects_nonsense_climber_stats(client, cached_detection_id, mock_celery_task, field, value):
+    response = await _post_with_climber(client, cached_detection_id, **{field: value})
+
+    assert response.status_code == 422
+    mock_celery_task.assert_not_called()
+
+
+@pytest.mark.parametrize("sent,expect", [("true", True), ("false", False), ("maybe", None)])
+async def test_analysis_passes_whole_wall_answer(client, cached_detection_id, mock_celery_task, sent, expect):
+    data = {"detection_id": cached_detection_id, "selected_hold_ids": "[3, 0, 2]", "whole_wall_in_photo": sent}
+    response = await client.post("/analysis", headers={"Idempotency-Key": f"key-wall-{sent}"}, data=data)
+
+    assert response.status_code == 202
+    [route] = mock_celery_task.call_args.args
+    assert route.get("whole_wall_in_photo") == expect

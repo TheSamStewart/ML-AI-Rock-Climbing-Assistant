@@ -1,4 +1,5 @@
 import Constants from 'expo-constants'
+import { ClimberStats } from '@/utils/climberStats'
 
 //Type for response
 
@@ -24,6 +25,10 @@ export type ClimbAnalysisVariables = {
   idempotencyKey: string
   selectedHoldIds: number[]
   boltSpacingCm: number
+  //Optional (slice 15): only sent when the climber has set them in Settings.
+  climberStats?: ClimberStats
+  //Slice 16: whether the user says the whole wall is in the photo.
+  wholeWallInPhoto?: boolean
 }
 
 export async function climbAnalysis({
@@ -31,11 +36,19 @@ export async function climbAnalysis({
   idempotencyKey,
   selectedHoldIds,
   boltSpacingCm,
+  climberStats,
+  wholeWallInPhoto,
 }: ClimbAnalysisVariables): Promise<ClimbAnalysisResponse> {
   const formData = new FormData()
   formData.append('detection_id', detectionId)
   formData.append('selected_hold_ids', JSON.stringify(selectedHoldIds))
   formData.append('bolt_spacing_cm', String(boltSpacingCm))
+  if (climberStats?.heightCm != null)
+    formData.append('climber_height_cm', String(climberStats.heightCm))
+  if (climberStats?.armSpanCm != null)
+    formData.append('climber_arm_span_cm', String(climberStats.armSpanCm))
+  if (wholeWallInPhoto !== undefined)
+    formData.append('whole_wall_in_photo', wholeWallInPhoto ? 'true' : 'false')
 
   const res = await fetch(`${API_URL}/analysis`, {
     method: 'POST',

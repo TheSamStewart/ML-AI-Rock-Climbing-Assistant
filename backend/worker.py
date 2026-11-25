@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 from celery import Celery
 import anthropic
@@ -22,7 +23,6 @@ def get_anthropic_client():
     return _anthropic_client
 
 #System prompt for the coaching LLM call - persona, task, and output-format rules.
-#Climber physical stats are NOT here yet - they get added to the user content (as extra route/climber context) in a later step.
 
 COACHING_SYSTEM_PROMPT = """You are an expert, encouraging rock climbing coach.
 
@@ -52,9 +52,10 @@ you can match a hold to its distances.
 
 Distances: "distances_cm" gives the straight-line distance in centimetres
 between every pair of selected holds, measured along the wall surface, and
-"wall_length_cm" gives the length of the wall in the photo. Use them to judge
-which holds are within reach of each other and how big each move is (e.g. a
-long reach, a dyno, or a short move between close holds).
+"wall_length_cm" gives the length of the wall in the photo; when present,
+"wall_length_is" says whether that is the wall's full height or only part of
+it. Use them to judge which holds are within reach of each other and how big
+each move is (e.g. a long reach, a dyno, or a short move between close holds).
 
 Accuracy: the distances are estimated from a photo, so they are approximate.
 The "accuracy" block explains the margin of error: a percentage of the
@@ -79,6 +80,23 @@ differs from another by less than the margin is the same steepness for your
 purposes. Where the margin makes a hold's angle uncertain, keep the advice
 about body position general. The estimate assumes the wall leans out, so a
 slab (a wall leaning back) can be mistaken for an overhang.
+
+Moves and positions: when present, "moves" lists each move in the order the
+climber picked the holds, with its length "cm" and how much of it is "up_cm"
+(up the wall; negative = down) and "across_cm" (to the right as you face the
+wall; negative = to the left), measured along the wall. Each hold may also have
+"position_from_start_cm": where it is, up and across, from the first picked
+hold. Prefer these to the photo coordinates for judging moves - the photo is
+taller than it is wide and seen in perspective, so photo coordinates distort
+distances. A move's "from_wall_angle_deg" and "to_wall_angle_deg" give the
+steepness at each end, and "wall_angle_change" appears when the wall gets
+clearly steeper or less steep during the move - mention it, as the body
+position has to change there.
+
+Climber: when present, "climber" gives the climber's height and arm span (and
+ape index) in cm. Use it to judge which moves are a stretch for this climber
+and suggest technique accordingly (e.g. high feet or a dynamic move for a long
+reach).
 
 Only reference holds present in the data you are given - never invent holds or
 coordinates. Keep instructions concise, one instruction per step."""
@@ -133,6 +151,85 @@ def _to_cm(units: float | None, bolt_spacing_cm: float) -> float | None:
 def _margin_cm(cm: float | None, tier: str = DEFAULT_TIER) -> float | None:
     pct = DISTANCE_MARGIN_PCT_BY_TIER.get(tier, DISTANCE_MARGIN_PCT_BY_TIER[DEFAULT_TIER])
     return None if cm is None else round(cm * pct / 100 + CENTROID_ALLOWANCE_CM, 1)
+
+
+def _up_across_fraction(dx: float, dy: float, axes: list) -> tuple[float, float] | None:
+    """Split a photo displacement (normalised coordinates) into its up-the-wall
+    and across-to-the-right parts, as fractions of its length along the wall,
+    using each endpoint's wall_axes ([down, across] photo directions, see
+    angle.wall_axes) and averaging. None when no endpoint has axes."""
+    parts = []
+    for ax in axes:
+        if ax is None:
+            continue
+        (d0, d1), (a0, a1) = ax
+        det = d0 * a1 - a0 * d1
+        if abs(det) < 1e-12:
+            continue
+        down = (dx * a1 - a0 * dy) / det
+        across = (d0 * dy - d1 * dx) / det
+        length = math.hypot(down, across)
+        if length > 0:
+            parts.append((-down / length, across / length))
+    if not parts:
+        return None
+    up = sum(p[0] for p in parts) / len(parts)
+    across = sum(p[1] for p in parts) / len(parts)
+    length = math.hypot(up, across)
+    return (up / length, across / length) if length > 0 else None
+
+
+def _moves_and_positions(route: dict, holds: list[dict], angles, margin_deg) -> tuple[list[dict], list[dict | None]]:
+    """Slice 15. Each move in pick order with its up/across parts in cm and
+    the wall angle at both ends, plus each hold's position in cm relative to
+    the first picked hold. The parts are proportions (from the wall's local
+    directions at each end) of the distance measured along the wall, so they
+    always add up to distances_cm, folds included."""
+    axes = route["wall_axes"]
+    matrix, spacing = route["distances_units"], route["bolt_spacing_cm"]
+
+    def split(i: int, j: int) -> tuple[float, float] | None:
+        frac = _up_across_fraction(holds[j]["x"] - holds[i]["x"], holds[j]["y"] - holds[i]["y"], [axes[i], axes[j]])
+        cm = _to_cm(matrix[i][j], spacing)
+        if frac is None or cm is None:
+            return None
+        return round(frac[0] * cm, 1), round(frac[1] * cm, 1)
+
+    moves = []
+    for i in range(len(holds) - 1):
+        j = i + 1
+        if holds[i]["id"] == holds[j]["id"]:
+            continue
+        move = {"from": holds[i]["id"], "to": holds[j]["id"], "cm": _to_cm(matrix[i][j], spacing)}
+        parts = split(i, j)
+        if parts is not None:
+            move["up_cm"], move["across_cm"] = parts
+        if angles is not None and angles[i] is not None and angles[j] is not None:
+            move["from_wall_angle_deg"], move["to_wall_angle_deg"] = angles[i], angles[j]
+            change = angles[j] - angles[i]
+            if margin_deg is not None and abs(change) > margin_deg:
+                move["wall_angle_change"] = f"{'steeper' if change > 0 else 'less steep'}: {angles[i]:g} to {angles[j]:g} degrees"
+        moves.append(move)
+
+    positions = [{"up_cm": 0.0, "across_cm": 0.0}] + [split(0, k) for k in range(1, len(holds))]
+    positions = [p if p is None or isinstance(p, dict) else {"up_cm": p[0], "across_cm": p[1]} for p in positions]
+    if holds and axes[0] is None:
+        positions[0] = None
+    return moves, positions
+
+
+def _climber_block(climber: dict) -> dict:
+    """Slice 15: the climber's height and arm span from Settings, and their
+    ape index (arm span minus height; positive = longer reach than height)."""
+    out = {k + "_cm": round(v, 1) for k, v in climber.items()}
+    if "height" in climber and "arm_span" in climber:
+        out["ape_index_cm"] = round(climber["arm_span"] - climber["height"], 1)
+    out["guidance"] = (
+        "Use the climber's own size to judge reach: a move that is long for an average "
+        "climber may be comfortable for this one, and the reverse. Arm span is fingertip to "
+        "fingertip with arms out; a positive ape index means a longer reach than their height."
+    )
+    return out
 
 
 def build_route_data(route: dict) -> dict:
@@ -219,6 +316,27 @@ def build_route_data(route: dict) -> dict:
     }
     if wall_angle is not None:
         data["wall_angle"] = wall_angle
+
+    #Slice 15, only when the cached scale has the wall's directions (an older
+    #scale gives the payload exactly as before).
+    axes = route.get("wall_axes")
+    if matrix is not None and axes is not None and len(axes) == len(holds):
+        moves, positions = _moves_and_positions(
+            route, holds, angles if has_angles else None, route.get("angle_margin_deg"))
+        data["moves"] = moves
+        for item, position in zip(hold_data, positions):
+            if position is not None:
+                item["position_from_start_cm"] = position
+    if route.get("climber"):
+        data["climber"] = _climber_block(route["climber"])
+    #Slice 16: the user's answer; wall_length_cm is only the wall's full
+    #height when the whole wall was in the photo.
+    if "whole_wall_in_photo" in route and data["wall_length_cm"] is not None:
+        data["wall_length_is"] = (
+            "the full height of the wall (the climber says the whole wall is in the photo)"
+            if route["whole_wall_in_photo"]
+            else "only the part of the wall in the photo; the wall is taller"
+        )
     return data
 
 
@@ -231,8 +349,6 @@ def build_coaching_payload(
     request payload - i.e. the kwargs for client.messages.create(**payload).
 
     Only builds the request payload; call_coaching_llm() below sends it.
-    Climber physical stats (ape index etc.) still need to be added to the user
-    content once that data is available.
     """
     route_data = build_route_data(route)
 

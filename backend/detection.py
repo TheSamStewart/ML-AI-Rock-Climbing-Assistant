@@ -21,6 +21,15 @@ def get_model():
         _model = YOLO(MODEL_PATH)
     return _model
 
+
+def warm_up() -> None:
+    """Load the model and run one tiny prediction, so the first real photo
+    after a server start doesn't pay for loading weights and initialising the
+    runtime (a cold /detect once took 9.8 s for YOLO alone). Called from
+    main.py's startup hook (slice 13)."""
+    import numpy as np
+    get_model().predict(np.zeros((64, 64, 3), np.uint8), verbose=False, **PREDICT_KWARGS)
+
 #Function that finds the centre of the ML hold predictions
 
 def _polygon_centroid(points: np.ndarray) -> tuple[float, float]:

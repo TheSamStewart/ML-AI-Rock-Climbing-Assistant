@@ -1,5 +1,6 @@
 import importlib
 import json
+import math
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -648,3 +649,96 @@ def test_broker_and_backend_read_from_env(monkeypatch):
 
 def teardown_module(module):
     importlib.reload(worker_module)
+
+
+# --- moves, positions and climber (slice 15, Developer-written) --------------
+# wall_axes per hold = [down-the-wall, across-to-the-right] photo directions.
+# Here the wall is face-on: down = +y in the photo, across = +x.
+
+FACE_ON = [[0.0, 1.0], [1.0, 0.0]]
+
+
+def _route_with_axes(points, angles=None, margin=8, climber=None):
+    holds = [{"id": 10 + i, "class_name": "HOLD", "x": x, "y": y} for i, (x, y) in enumerate(points)]
+    n = len(points)
+    d = [[math.hypot(points[i][0] - points[j][0], points[i][1] - points[j][1]) * 10 for j in range(n)] for i in range(n)]
+    route = {"holds": holds, "distances_units": d, "wall_length_units": 20.0, "bolt_spacing_cm": 20.0,
+             "wall_axes": [FACE_ON] * n}
+    if angles is not None:
+        route.update({"angles_deg": angles, "angle_source": "sensor", "angle_margin_deg": margin})
+    if climber is not None:
+        route["climber"] = climber
+    return route
+
+
+def test_moves_split_into_up_and_across_that_add_up_to_the_distance():
+    # start, then straight up 0.5, then right 0.3 (photo y down = wall down)
+    data = build_route_data(_route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)]))
+
+    first, second = data["moves"]
+    assert (first["from"], first["to"]) == (10, 11)
+    assert first["up_cm"] == pytest.approx(first["cm"], abs=0.1) and first["across_cm"] == pytest.approx(0, abs=0.1)
+    assert second["across_cm"] == pytest.approx(second["cm"], abs=0.1) and second["up_cm"] == pytest.approx(0, abs=0.1)
+    for m in data["moves"]:
+        assert math.hypot(m["up_cm"], m["across_cm"]) == pytest.approx(m["cm"], abs=0.2)
+
+
+def test_positions_are_relative_to_the_first_picked_hold():
+    data = build_route_data(_route_with_axes([(0.5, 0.9), (0.2, 0.9), (0.5, 0.5)]))
+
+    pos = [h["position_from_start_cm"] for h in data["holds"]]
+    assert pos[0] == {"up_cm": 0.0, "across_cm": 0.0}
+    assert pos[1]["across_cm"] < 0 and pos[1]["up_cm"] == pytest.approx(0, abs=0.1)   # to the left
+    assert pos[2]["up_cm"] > 0 and pos[2]["across_cm"] == pytest.approx(0, abs=0.1)   # straight up
+
+
+def test_a_move_onto_clearly_steeper_wall_is_flagged_and_a_small_change_is_not():
+    data = build_route_data(_route_with_axes([(0.5, 0.9), (0.5, 0.6), (0.5, 0.3)], angles=[20.0, 54.5, 50.0], margin=8))
+
+    onto_steep, small = data["moves"]
+    assert (onto_steep["from_wall_angle_deg"], onto_steep["to_wall_angle_deg"]) == (20.0, 54.5)
+    assert onto_steep["wall_angle_change"].startswith("steeper")
+    assert "wall_angle_change" not in small
+
+
+def test_no_moves_without_wall_axes_keeps_the_old_payload():
+    route = _route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)])
+    del route["wall_axes"]
+
+    data = build_route_data(route)
+
+    assert set(data) == {"holds", "distances_cm", "wall_length_cm", "accuracy"}
+    assert all("position_from_start_cm" not in h for h in data["holds"])
+
+
+def test_climber_block_gives_ape_index_and_guidance():
+    data = build_route_data(_route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)], climber={"height": 175.0, "arm_span": 181.0}))
+
+    c = data["climber"]
+    assert (c["height_cm"], c["arm_span_cm"], c["ape_index_cm"]) == (175.0, 181.0, 6.0)
+    assert "reach" in c["guidance"]
+
+
+def test_climber_with_only_height_has_no_ape_index():
+    data = build_route_data(_route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)], climber={"height": 175.0}))
+
+    assert data["climber"]["height_cm"] == 175.0 and "ape_index_cm" not in data["climber"]
+
+
+def test_prompt_explains_moves_and_climber():
+    for phrase in ("up_cm", "across_cm", "position_from_start_cm", "wall_angle_change", "climber"):
+        assert phrase in COACHING_SYSTEM_PROMPT
+
+
+# --- whole wall in the photo (slice 16, Developer-written) --------------------
+
+@pytest.mark.parametrize("whole,expect", [(True, "full height"), (False, "only the part")])
+def test_wall_length_is_labelled_from_the_users_answer(whole, expect):
+    route = _route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)])
+    route["whole_wall_in_photo"] = whole
+
+    assert expect in build_route_data(route)["wall_length_is"]
+
+
+def test_no_answer_no_label():
+    assert "wall_length_is" not in build_route_data(_route_with_axes([(0.5, 0.9), (0.5, 0.4), (0.8, 0.4)]))

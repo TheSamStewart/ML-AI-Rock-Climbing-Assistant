@@ -19,13 +19,13 @@ pytestmark = pytest.mark.skipif(not PANELS.exists(), reason="panels.json referen
 MEASURED_ANGLES = {
     "IMG_7500": {"red": 6, "yellow": 14, "green": 17, "blue": 23},
     "IMG_7502": {"yellow": 34, "red": 9},
-    "IMG_7503": {"red": 14, "yellow": -26},
+    "IMG_7503": {"red": 14, "yellow": 26},  # yellow corrected from -26 by the human, 2026-11-24
     "IMG_7504": {"red": 23, "yellow": 13},
 }
 
 # epic_wall has ten red outlines (P7-P16, colours repeat), so it is an ordered
 # list of angles in measurement order, not a colour dict.
-EPIC_WALL_ANGLES = [25, 25, 29, 29, 31, 30, 29, 14, 14, 14]
+EPIC_WALL_ANGLES = [25, 25, 29, 29, 31, 30, 29, 29, 14, 14]  # P14 corrected from 14 by the human, 2026-11-24
 OUTLINED = sorted([*MEASURED_ANGLES, "epic_wall"])
 
 

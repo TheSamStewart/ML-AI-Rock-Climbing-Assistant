@@ -21,7 +21,7 @@ Section 2 - red - 9 degrees
 ## Image_7503
 
 Section 1 - red - 14 degrees
-Section 2 - yellow - negative 26 degrees
+Section 2 - yellow - negative 26 degrees **(correction 2026-11-24, human: it is an overhang, +26)**
 
 ## Image_7504
 
@@ -67,7 +67,7 @@ Top white 14cm - yellow
 11. 31
 12. 30
 13. 29
-14. 14
+14. 14 **(correction 2026-11-24, human: about 29, like the panel to its left)**
 15. 14
 16. 14
 
