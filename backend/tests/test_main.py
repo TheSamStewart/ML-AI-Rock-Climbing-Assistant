@@ -8,10 +8,10 @@ from PIL import Image
 from redis.exceptions import RedisError
 from unittest.mock import patch
 
-import detection
-import scale
-import worker
-from main import (
+from wall_analysis import detection
+from wall_analysis import scale
+from coaching import worker
+from api.main import (
     app,
     DEFAULT_BOLT_SPACING_CM,
     DETECTIONS_TTL_SECONDS,
@@ -103,7 +103,7 @@ FAKE_BOLTS = _lattice_bolts((64, 48), FAKE_BOLT_SIDE_PX)
 
 @pytest.fixture
 def mock_bolts():
-    with patch("main.bolts.detect_bolt_holes", return_value=FAKE_BOLTS) as mock_detect:
+    with patch("api.main.bolts.detect_bolt_holes", return_value=FAKE_BOLTS) as mock_detect:
         yield mock_detect
 
 
@@ -193,7 +193,7 @@ async def test_detect_runs_bolt_detection_on_full_res_image_without_exif(client,
 
 
 async def test_detect_passes_found_bolts_to_compute_scale(client, jpeg_bytes, mock_run_detection, mock_bolts, sample_detections):
-    with patch("scale.compute_scale", wraps=scale.compute_scale) as spy:
+    with patch("wall_analysis.scale.compute_scale", wraps=scale.compute_scale) as spy:
         response = await _post_detect(client, jpeg_bytes)
 
     assert response.status_code == 200
@@ -206,7 +206,7 @@ async def test_detect_passes_found_bolts_to_compute_scale(client, jpeg_bytes, mo
 
 
 async def test_detect_bolt_detection_failure_is_500_and_caches_nothing(client, jpeg_bytes, mock_run_detection, mock_redis_client):
-    with patch("main.bolts.detect_bolt_holes", side_effect=RuntimeError("cv2 exploded")):
+    with patch("api.main.bolts.detect_bolt_holes", side_effect=RuntimeError("cv2 exploded")):
         response = await _post_detect(client, jpeg_bytes)
 
     assert response.status_code == 500
@@ -236,7 +236,7 @@ async def test_detect_distances_come_from_bolt_lattice_in_px(client, mock_run_de
     # Normalized bolts and holds are mapped back to px with the uploaded image
     # size; on a fronto-parallel lattice of side s px a hold pair is px / s units.
     s = min(image_size) / 6
-    with patch("main.bolts.detect_bolt_holes", return_value=_lattice_bolts(image_size, s)):
+    with patch("api.main.bolts.detect_bolt_holes", return_value=_lattice_bolts(image_size, s)):
         response = await _post_detect(client, _jpeg(image_size))
 
     body = response.json()["scale"]
@@ -256,7 +256,7 @@ async def test_detect_distances_come_from_bolt_lattice_in_px(client, mock_run_de
 async def test_detect_applies_exif_orientation_before_yolo_and_bolts(client, mock_run_detection, mock_bolts, sample_detections):
     # Stored 300x100 with Orientation=6 (rotate 90 deg CW to display): the app
     # shows it as 100x300, so YOLO and bolt detection must see 100x300.
-    with patch("scale.compute_scale", wraps=scale.compute_scale) as spy:
+    with patch("wall_analysis.scale.compute_scale", wraps=scale.compute_scale) as spy:
         response = await _post_detect(client, _jpeg_with_orientation((300, 100), 6))
 
     assert response.status_code == 200
@@ -286,7 +286,7 @@ async def test_detect_exif_rotation_moves_pixels_not_just_size(client, mock_run_
 
 
 async def test_detect_exif_orientation_1_is_unchanged(client, mock_run_detection, mock_bolts):
-    with patch("scale.compute_scale", wraps=scale.compute_scale) as spy:
+    with patch("wall_analysis.scale.compute_scale", wraps=scale.compute_scale) as spy:
         response = await _post_detect(client, _jpeg_with_orientation((300, 100), 1))
 
     assert response.status_code == 200
@@ -332,7 +332,7 @@ async def test_detect_truncated_image_is_422(client, jpeg_bytes, mock_run_detect
 
 
 async def test_detect_inference_failure_is_500(client, jpeg_bytes, mock_redis_client):
-    with patch("main.detection.run_detection", side_effect=RuntimeError("CUDA on fire")):
+    with patch("api.main.detection.run_detection", side_effect=RuntimeError("CUDA on fire")):
         response = await _post_detect(client, jpeg_bytes)
 
     assert response.status_code == 500
@@ -351,7 +351,7 @@ async def test_detect_cache_write_failure_is_503(client, jpeg_bytes, mock_run_de
 
 
 async def test_detect_scale_failure_is_500_and_caches_nothing(client, jpeg_bytes, mock_run_detection, mock_redis_client):
-    with patch("scale.compute_scale", side_effect=RuntimeError("scale exploded")):
+    with patch("wall_analysis.scale.compute_scale", side_effect=RuntimeError("scale exploded")):
         response = await _post_detect(client, jpeg_bytes)
 
     assert response.status_code == 500
@@ -668,7 +668,7 @@ async def test_analysis_task_creation_failure_cleans_up_idempotency_key(client, 
 
 
 async def test_get_analysis_failure(client):
-    with patch("main.AsyncResult") as mock_async_result:
+    with patch("api.main.AsyncResult") as mock_async_result:
         mock_instance = mock_async_result.return_value
         mock_instance.state = "FAILURE"
         mock_instance.result = RuntimeError("Coaching LLM output was truncated (hit max_tokens)")
@@ -685,7 +685,7 @@ async def test_get_analysis_failure(client):
 
 @pytest.mark.parametrize("celery_state", ["PENDING", "STARTED", "RETRY"])
 async def test_get_analysis_in_progress_states(client, celery_state):
-    with patch("main.AsyncResult") as mock_async_result:
+    with patch("api.main.AsyncResult") as mock_async_result:
         mock_async_result.return_value.state = celery_state
 
         response = await client.get("/analysis/test-task-id-1234")
@@ -701,7 +701,7 @@ async def test_get_analysis_success_returns_steps(client):
             {"step_number": 2, "instruction": "Right hand to the volume.", "reason": "Use the big feature."},
         ]
     }
-    with patch("main.AsyncResult") as mock_async_result:
+    with patch("api.main.AsyncResult") as mock_async_result:
         mock_instance = mock_async_result.return_value
         mock_instance.state = "SUCCESS"
         mock_instance.result = steps

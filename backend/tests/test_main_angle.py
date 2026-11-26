@@ -7,10 +7,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from unittest.mock import patch
 
-import detection
-import scale
-import worker
-from main import app
+from wall_analysis import detection
+from wall_analysis import scale
+from coaching import worker
+from api.main import app
 
 pytestmark = pytest.mark.anyio
 
@@ -40,7 +40,7 @@ FAKE_BOLTS = _lattice_bolts((64, 48), 8.0)
 
 @pytest.fixture
 def mock_bolts():
-    with patch("main.bolts.detect_bolt_holes", return_value=FAKE_BOLTS) as mock_detect:
+    with patch("api.main.bolts.detect_bolt_holes", return_value=FAKE_BOLTS) as mock_detect:
         yield mock_detect
 
 
@@ -189,7 +189,7 @@ async def test_scale_with_angles_is_cached_unchanged(client, jpeg_bytes, mock_ru
 async def test_angle_failure_never_fails_detect(client, jpeg_bytes, mock_run_detection, mock_bolts):
     baseline = (await _detect(client, jpeg_bytes, json.dumps(ANDROID_14))).json()["scale"]
 
-    with patch("angle.plane_normals", side_effect=RuntimeError("angle exploded")):
+    with patch("wall_analysis.angle.plane_normals", side_effect=RuntimeError("angle exploded")):
         response = await _detect(client, jpeg_bytes, json.dumps(ANDROID_14))
 
     assert response.status_code == 200

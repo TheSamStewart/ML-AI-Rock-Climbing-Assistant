@@ -1,7 +1,7 @@
 """Slice 7 tests for scale.py: panel segmentation from the bolt lattice, one
 homography per panel, cross-seam distances.
 
-Written from the spec (docs/features/wall_size_hold_distance.md: Reference
+Written from the spec (docs/features_deprecated/wall_size_hold_distance.md: Reference
 data, "Accuracy results (slice 7)", Decisions -> "Slice 7 panels +
 homography per panel", the 5b row of Slices) only, not from the implementation.
 
@@ -35,7 +35,7 @@ from dataclasses import fields, replace
 import numpy as np
 import pytest
 
-from scale import (
+from wall_analysis.scale import (
     LATTICE_BASIS,
     Lattice,
     fit_lattice,
@@ -74,7 +74,7 @@ from test_scale import (
     _two_panels,
     centred_square,
 )
-from worker import DISTANCE_MARGIN_PCT
+from coaching.worker import DISTANCE_MARGIN_PCT
 
 MARGIN = DISTANCE_MARGIN_PCT / 100.0
 # Synthetic segmentation bars (bolts at least SIDE_CLEARANCE units from a seam

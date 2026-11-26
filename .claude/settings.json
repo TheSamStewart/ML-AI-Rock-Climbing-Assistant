@@ -3,11 +3,11 @@
   "permissions": {
     "allow": [
       "Bash(uv run python -m pytest *)",
-      "Bash(uv run python eval_field.py *)",
-      "Bash(uv run python eval_scale.py *)",
-      "Bash(uv run python eval_angle.py *)",
-      "Bash(uv run python eval_volume.py *)",
-      "Bash(uv run python eval_volume_field.py *)",
+      "Bash(uv run python -m accuracy_checks.eval_field *)",
+      "Bash(uv run python -m accuracy_checks.eval_scale *)",
+      "Bash(uv run python -m accuracy_checks.eval_angle *)",
+      "Bash(uv run python -m accuracy_checks.eval_volume *)",
+      "Bash(uv run python -m accuracy_checks.eval_volume_field *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -28,6 +28,33 @@
       "Bash(git push * *:main)",
       "Bash(git push * *:main *)",
       "Bash(git push * *:refs/heads/main)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/branch_guard.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/branch_guard.mjs", "session"],
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

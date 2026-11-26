@@ -53,7 +53,7 @@ This needs a running stack, so it's separate from `pytest` by necessity —
 correctness tests use fakes and mocks on purpose (fast, deterministic, no
 infra); load tests need the real thing.
 
-`load_test/simulate_load.py` is a small `httpx`-async script (no Locust —
+`tests/load/simulate_load.py` is a small `httpx`-async script (no Locust —
 Locust pulls in `gevent`, which regularly lags behind brand-new CPython
 releases and this project pins `>=3.14`; a dependency-free script avoids
 that landmine). It:
@@ -117,7 +117,7 @@ sizing, worth revisiting once there's real usage data:
 - Tap-to-hold matching now happens client-side (`utils/holdMatching.ts` in
   the mobile app), so it has no backend tests; the backend only does the
   id lookup (`detection.select_holds`).
-- `load_test/simulate_load.py` still targets the old photo-upload
+- `tests/load/simulate_load.py` still targets the old photo-upload
   `/analysis` contract and needs porting to `/detect` → `/analysis`.
 - No auth exists yet (noted in `main.py`'s own comments), so idempotency
   keys are global, not per-user — tests reflect that as-is.

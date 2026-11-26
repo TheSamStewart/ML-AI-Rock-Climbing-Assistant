@@ -1,10 +1,10 @@
 import { API_URL } from '@/api/detectHolds'
 import { GravityReading } from '@/hooks/useGravityReading'
 
-//DEV ONLY - the volume scan test feature (docs/features/volume_scan.md).
+//DEV ONLY - the volume scan test feature (docs/milestones/v0.2/38-volume-scan-trial/spec.md).
 //Sends the photo, a burst taken while stepping sideways and the tapped volume's
 //outline; the server measures each visible face. Keep in sync with
-//backend/main.py's /dev/volume-scan and backend/volume_scan.py.
+//backend/api/main.py's /dev/volume-scan and backend/wall_analysis/volume_scan.py.
 
 export type ScanFace = {
   //Degrees from vertical, + overhang / - slab (same as the wall angle).

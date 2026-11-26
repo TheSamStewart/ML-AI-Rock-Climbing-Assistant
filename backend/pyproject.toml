@@ -1,8 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Backend for the AI rock climbing coach: hold detection, wall measurements and the coaching prompt."
 requires-python = ">=3.14"
 dependencies = [
     "anthropic>=1.0.0",
@@ -19,15 +18,13 @@ dependencies = [
 dev = [
     "fakeredis>=2.37.0",
     "pytest>=9.1.1",
-    "httpx2>=0.22",
-    "mock>=5.0.1",
     "pytest-cov>=7.1.0",
     "httpx>=0.28.1",
 ]
 
 [tool.pytest.ini_options]
-# Tests live in tests/; "." keeps the app modules (scale, bolts, main, ...)
-# importable however pytest is launched.
+# Tests live in tests/; "." keeps the packages (api, coaching, wall_analysis,
+# accuracy_checks) importable however pytest is launched.
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
@@ -36,5 +33,5 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["main", "worker", "detection", "redis_client"]
-omit = ["tests/*", "load_test/*"]
+source = ["api", "coaching", "wall_analysis.detection"]
+omit = ["tests/*"]

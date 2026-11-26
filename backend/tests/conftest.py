@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 @pytest.fixture(autouse=True)
 def mock_celery_task():
-    with patch("main.analysis_task.delay") as mock_task:
+    with patch("api.main.analysis_task.delay") as mock_task:
         mock_task.return_value.id = "test-task-id-1234"
         yield mock_task
 
@@ -26,7 +26,7 @@ def mock_redis_client():
     # comparison never matches.
     fake_redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
 
-    with patch("main.redis_client", fake_redis):
+    with patch("api.main.redis_client", fake_redis):
         yield fake_redis
 
 
@@ -105,5 +105,5 @@ def jpeg_bytes():
 
 @pytest.fixture
 def mock_run_detection(sample_detections):
-    with patch("main.detection.run_detection", return_value=sample_detections) as mock_run:
+    with patch("api.main.detection.run_detection", return_value=sample_detections) as mock_run:
         yield mock_run

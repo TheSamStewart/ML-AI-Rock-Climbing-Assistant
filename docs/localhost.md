@@ -12,8 +12,8 @@ There are two ways to run it:
 | Service    | What it is                                  | Port |
 |------------|---------------------------------------------|------|
 | `redis`    | Celery broker/result backend and idempotency keys | 6379 |
-| `api`      | FastAPI app (`backend/main.py`)             | 8000 |
-| `worker`   | Celery worker (`backend/worker.py`) that runs hold detection and the Claude coaching call | none |
+| `api`      | FastAPI app (`backend/api/main.py`)             | 8000 |
+| `worker`   | Celery worker (`backend/coaching/worker.py`) that runs hold detection and the Claude coaching call | none |
 | `frontend` | Expo dev server (Metro) for the mobile app  | 8081 |
 
 The mobile app calls the API at `http://<host>:8000`. It takes `<host>` from the Expo dev server address (`Constants.expoConfig.hostUri`) and falls back to `localhost`. This is why the LAN IP matters when you test on a physical phone (see [Testing on a physical phone](#testing-on-a-physical-phone)).
@@ -143,7 +143,7 @@ Or use any local Redis 7 on port 6379. The backend defaults to `redis://localhos
 ```powershell
 cd backend
 uv sync
-uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Worker
@@ -151,7 +151,7 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```powershell
 cd backend
 $env:ANTHROPIC_API_KEY = "sk-ant-..."
-uv run celery -A worker.app worker --loglevel=info --pool=solo
+uv run celery -A coaching.worker.app worker --loglevel=info --pool=solo
 ```
 
 Celery's default prefork pool doesn't work reliably on Windows, so use `--pool=solo` (or `--pool=threads`).

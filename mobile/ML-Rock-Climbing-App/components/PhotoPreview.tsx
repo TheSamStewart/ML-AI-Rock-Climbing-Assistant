@@ -42,7 +42,7 @@ type Box = {
   height: number
 }
 
-//Two to start one to finish minimum - keep in sync with backend/main.py's MIN_SELECTED_HOLDS
+//Two to start one to finish minimum - keep in sync with backend/api/main.py's MIN_SELECTED_HOLDS
 
 const MIN_SELECTED_HOLDS = 3
 
@@ -257,7 +257,7 @@ export function PhotoPreview({
     setSelectedHoldIds((prev) => prev.slice(0, -1))
   }
 
-  //Volume scan (test feature, docs/features/volume_scan.md): the most recently
+  //Volume scan (test feature, docs/milestones/v0.2/38-volume-scan-trial/spec.md): the most recently
   //selected VOLUME is the one scanned.
 
   const [scanOpen, setScanOpen] = useState(false)

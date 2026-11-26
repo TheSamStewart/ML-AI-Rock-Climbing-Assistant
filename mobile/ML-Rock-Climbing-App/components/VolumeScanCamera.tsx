@@ -4,7 +4,7 @@ import { Button, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { largestPictureSize } from '@/utils/pictureSize'
 
-//DEV ONLY - the volume scan burst (docs/features/volume_scan.md). While the
+//DEV ONLY - the volume scan burst (docs/milestones/v0.2/38-volume-scan-trial/spec.md). While the
 //button is held the camera takes photos back to back, at the same picture size
 //as the main photo, so the server knows each one's lens. The user steps slowly
 //sideways meanwhile, keeping the volume and the wall around it in frame.

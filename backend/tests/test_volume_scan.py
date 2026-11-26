@@ -1,4 +1,4 @@
-"""Volume scan (test feature): tests written from docs/features/volume_scan.md.
+"""Volume scan (test feature): tests written from docs/milestones/v0.2/38-volume-scan-trial/spec.md.
 
 Fast tests cover the POST /dev/volume-scan contract (scan_volume and YOLO
 patched, scans saved under tmp_path) and scan_volume's input rules. Slow
@@ -19,9 +19,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
-import main
-import volume_scan
-from main import app
+from api import main
+from wall_analysis import volume_scan
+from api.main import app
 
 BACKEND = Path(__file__).resolve().parents[1]
 SYNTH_DIR = BACKEND / "experiments" / "two_photo"
@@ -219,7 +219,7 @@ async def test_spacing_range_ends_accepted(scans_dir, fake_scan, mock_run_detect
 
 @pytest.mark.anyio
 async def test_yolo_failure_does_not_stop_scan(scans_dir, fake_scan):
-    with patch("main.detection.run_detection", side_effect=RuntimeError("model blew up")):
+    with patch("api.main.detection.run_detection", side_effect=RuntimeError("model blew up")):
         r = await _post()
     assert r.status_code == 200, r.text
     fake_scan.assert_called_once()

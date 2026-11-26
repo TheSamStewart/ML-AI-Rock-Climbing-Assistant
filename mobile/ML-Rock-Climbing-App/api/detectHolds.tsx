@@ -19,7 +19,7 @@ export type Detection = {
 
 //Wall scale in grid units (1 unit = the user's bolt spacing) - multiply by
 //boltSpacingCm for cm. distances_units is N x N, indexed in the same order as
-//detections. Keep in sync with backend/scale.py.
+//detections. Keep in sync with backend/wall_analysis/scale.py.
 
 export type Scale = {
   status: 'ok' | 'insufficient_bolts'

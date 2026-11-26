@@ -29,8 +29,8 @@ import numpy as np
 import pytest
 from PIL import Image, ImageOps
 
-import bolts
-from bolts import detect_bolt_holes
+from wall_analysis import bolts
+from wall_analysis.bolts import detect_bolt_holes
 
 # --- synthetic wall helpers ---------------------------------------------------
 
@@ -546,7 +546,7 @@ HARD_PHOTO = "IMG_7501.jpeg"
 
 @lru_cache(maxsize=None)
 def _run_reference(name):
-    import detection
+    from wall_analysis import detection
 
     with Image.open(KNOWN / name) as raw:
         image = ImageOps.exif_transpose(raw)

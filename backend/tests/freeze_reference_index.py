@@ -23,7 +23,7 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]
 import numpy as np  # noqa: E402
 
 import test_scale as T  # noqa: E402
-from scale import index_lattice  # noqa: E402
+from wall_analysis.scale import index_lattice  # noqa: E402
 
 
 def main():

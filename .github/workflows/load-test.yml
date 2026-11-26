@@ -61,7 +61,7 @@ jobs:
       - name: Run load test
         working-directory: backend
         run: |
-          uv run python load_test/simulate_load.py \
+          uv run python tests/load/simulate_load.py \
             --base-url http://localhost:8000 \
             --users "${{ inputs.users || '200' }}" \
             --duration "${{ inputs.duration || '60' }}" \

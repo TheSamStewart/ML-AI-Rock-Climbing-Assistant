@@ -1,5 +1,5 @@
 //Bolt grid spacing (side of one bolt-hole square) - keep in sync with
-//DEFAULT/MIN/MAX_BOLT_SPACING_CM in backend/main.py.
+//DEFAULT/MIN/MAX_BOLT_SPACING_CM in backend/api/main.py.
 
 export const BOLT_SPACING_STORAGE_KEY = 'boltSpacingCm'
 export const DEFAULT_BOLT_SPACING_CM = 20

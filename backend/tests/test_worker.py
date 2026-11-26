@@ -8,8 +8,8 @@ import anthropic
 import httpx
 import pytest
 
-import worker as worker_module
-from worker import (
+from coaching import worker as worker_module
+from coaching.worker import (
     COACHING_OUTPUT_SCHEMA,
     CENTROID_ALLOWANCE_CM,
     COACHING_SYSTEM_PROMPT,
@@ -516,7 +516,7 @@ def _response(text=None, stop_reason="end_turn", stop_details=None, content=None
 @pytest.fixture
 def mock_client():
     client = MagicMock()
-    with patch("worker.get_anthropic_client", return_value=client):
+    with patch("coaching.worker.get_anthropic_client", return_value=client):
         yield client
 
 
@@ -592,7 +592,7 @@ def test_call_maps_sdk_errors_to_runtime_error(mock_client, error, message):
 
 
 def test_analysis_task_builds_payload_and_returns_llm_output():
-    with patch("worker.call_coaching_llm", return_value=STEPS) as mock_call:
+    with patch("coaching.worker.call_coaching_llm", return_value=STEPS) as mock_call:
         result = analysis(_route())
 
     assert result == STEPS
@@ -604,6 +604,16 @@ def test_analysis_is_registered_as_a_celery_task():
     assert analysis.name == "worker.analysis"
 
 
+def test_api_enqueues_under_the_same_task_name_as_the_worker():
+    # Decision (#35, 2026-11-26): the task keeps the name "worker.analysis"
+    # after the move to coaching/worker.py, and the API sends by that name, so
+    # queued tasks and a mixed-version API and worker keep working.
+    from api import main as api_main
+
+    assert analysis.name == "worker.analysis"
+    assert api_main.analysis_task.name == analysis.name
+
+
 # --- get_anthropic_client ---
 
 
@@ -611,7 +621,7 @@ def test_anthropic_client_is_created_once_and_cached():
     saved = worker_module._anthropic_client
     worker_module._anthropic_client = None
     try:
-        with patch("worker.anthropic.Anthropic") as mock_cls:
+        with patch("coaching.worker.anthropic.Anthropic") as mock_cls:
             first = worker_module.get_anthropic_client()
             second = worker_module.get_anthropic_client()
     finally:

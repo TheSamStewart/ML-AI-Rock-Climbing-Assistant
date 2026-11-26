@@ -1,6 +1,6 @@
 import importlib
 
-import redis_client as redis_client_module
+from api import redis_client as redis_client_module
 
 
 def _reload_with_env(monkeypatch, env_value):

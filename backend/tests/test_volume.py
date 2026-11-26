@@ -27,7 +27,7 @@ what that costs.
 import numpy as np
 import pytest
 
-import volume
+from wall_analysis import volume
 
 # --- exact synthetic geometry ------------------------------------------------
 
