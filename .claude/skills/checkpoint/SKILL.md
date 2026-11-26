@@ -14,7 +14,10 @@ The human has asked to commit the reviewed slice and push it. This is the one ca
    - `backend/models/*.pt`
    - scratch output such as `backend/final.txt`, `backend/fakewall_out/`, `backend/field_captures_scans/`
    - anything that looks like a secret or a large binary not already tracked. If unsure about a file, leave it out and say so.
-4. **Commit.** Subject: the newest Slice log entry's title in `docs/features/handover.md` (the text after `### `). Body: that entry's *What changed* bullets. End the message with a blank line and:
+4. **Commit.**
+   - **Subject:** `#<n> ` followed by the newest Slice log entry's title in the issue's `handover.md`, i.e. the text after `### `. The branch gives `<type>/<n>-<slug>`, and the docs are in `docs/milestones/*/<n>-<slug>/` (or `docs/milestones/*/completed/<n>-<slug>/` once the issue is done).
+   - **Body:** that entry's *What changed* bullets.
+   - End the message with a blank line and:
    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
    Use a heredoc so the formatting survives.
 5. **Push** the current branch: `git push -u origin <branch>`. No force, ever. If the push is rejected, stop and report; don't pull, rebase or force.

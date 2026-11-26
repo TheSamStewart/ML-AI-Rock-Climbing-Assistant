@@ -1,7 +1,7 @@
 """Slice 4 tests for scale.py: lattice fit, metric field, segment distances,
 wall length, index_lattice and compute_scale.
 
-Written from the spec (docs/features/wall_size_hold_distance.md, Decisions ->
+Written from the spec (docs/features_deprecated/wall_size_hold_distance.md, Decisions ->
 "Slice 4 lattice + distances") only, not from the implementation.
 
 Ground truth: synthetic centred-square lattices built in grid units (corners
@@ -32,8 +32,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import scale
-from scale import (
+from wall_analysis import scale
+from wall_analysis.scale import (
     DISTANCE_DECIMALS,
     LATTICE_BASIS,
     SEGMENT_SAMPLES,

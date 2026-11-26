@@ -41,12 +41,12 @@ they're present.
 ## Directory
 ```
 ├── backend/
-│   ├── main.py                       # FastAPI app: POST /detect, POST /analysis, GET /analysis/{task_id}
-│   ├── detection.py                  # YOLO loading, run_detection(), select_holds()
-│   ├── worker.py                     # Celery app: analysis task builds the coaching prompt + calls Claude
-│   ├── redis_client.py               # async Redis client for idempotency keys + detections cache
-│   ├── bolts.py                      # bolt-hole detection
-│   ├── scale.py                      # bolt lattice, panels, hold distances, wall length
+│   ├── api/main.py                   # FastAPI app: POST /detect, POST /analysis, GET /analysis/{task_id}
+│   ├── api/redis_client.py           # async Redis client for idempotency keys + detections cache
+│   ├── coaching/worker.py            # Celery app: analysis task builds the coaching prompt + calls Claude
+│   ├── wall_analysis/detection.py    # YOLO loading, run_detection(), select_holds()
+│   ├── wall_analysis/bolts.py        # bolt-hole detection
+│   ├── wall_analysis/scale.py        # bolt lattice, panels, hold distances, wall length
 │   ├── tests/                        # every pytest file (testpaths in pyproject.toml)
 │   │   ├── conftest.py               # shared fixtures (fake redis, mocked Celery task, sample detections)
 │   │   ├── test_main.py              # API endpoints
@@ -56,10 +56,10 @@ they're present.
 │   │   ├── test_redis_client.py      # redis_client.py env-var wiring
 │   │   ├── test_bolts.py             # bolt-hole detection (synthetic + slow reference photos)
 │   │   ├── test_scale.py             # lattice fit, distances, wall length (synthetic + slow reference photos)
-│   │   └── test_panels_reference.py  # panels.json reference data checks
-│   ├── models/best.pt                # YOLO weights - gitignored, only present locally
-│   └── load_test/
-│       └── simulate_load.py          # async load-test script against a real stack (not part of pytest)
+│   │   ├── test_panels_reference.py  # panels.json reference data checks
+│   │   └── load/
+│   │       └── simulate_load.py      # async load-test script against a real stack (not part of pytest)
+│   └── models/best.pt                # YOLO weights - gitignored, only present locally
 ```
 
 ## Running locally
@@ -184,7 +184,7 @@ NOTE: setup threshold in future
 
 This workflow is manual-only (`workflow_dispatch`). There is no schedule or PR trigger: a 2 vCPU GitHub runner hosting the whole stack mostly measures its own resource contention (see the comment at the top of `load-test.yml`). It simulates N users (default 200) going end to end against a real instance of the app started with docker-compose.
 
-When triggered, the runner installs dependencies, starts the app via `docker compose up -d redis api worker`, waits for the API to be ready, and runs `uv run python load_test/simulate_load.py` with the duration and user-count args. When it finishes, it tears the stack down with `docker compose down -v`.
+When triggered, the runner installs dependencies, starts the app via `docker compose up -d redis api worker`, waits for the API to be ready, and runs `uv run python tests/load/simulate_load.py` with the duration and user-count args. When it finishes, it tears the stack down with `docker compose down -v`.
 
 Once the run completes, the logs are uploaded to GitHub Actions.
 

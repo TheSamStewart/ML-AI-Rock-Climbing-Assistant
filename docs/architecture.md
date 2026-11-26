@@ -76,46 +76,57 @@ ML-AI-Rock-Climbing-Assistant/
 │   └── refresh-lan-ip.ps1            # re-detects the host's LAN IP for the frontend container, see localhost.md
 ├── .github/workflows/
 │   ├── pytest.yml                    # CI: runs the full backend pytest suite with coverage
-│   └── load-test.yml                 # manual/weekly: runs load_test/simulate_load.py against a real stack
+│   └── load-test.yml                 # manual/weekly: runs tests/load/simulate_load.py against a real stack
 ├── docs/
 │   ├── architecture.md               # what the system is, how it fits together
 │   ├── decisions.md                  # why each tech/pattern was chosen
 │   ├── localhost.md                  # running the full stack locally
 │   ├── contributing.md
 │   ├── testing.md
-│   └── features/
-│       ├── wall_size_hold_distance.md # spec: contracts, decisions, accuracy tables
-│       ├── handover.md               # slice status, plan, per-slice log (start here)
-│       └── volume_retrain.md         # side task: retraining YOLO to find volumes (parked)
-├── backend/
+│   ├── features/
+│   │   ├── handover.md               # slice status, plan, per-slice log (start here)
+│   │   ├── volume_scan.md            # spec: volume scan test feature
+│   │   └── volume_retrain.md         # side task: retraining YOLO to find volumes (parked)
+│   └── features_deprecated/
+│       └── wall_size_hold_distance.md # finished feature's spec: contracts, decisions, accuracy tables
+├── backend/                          # run everything from here (uvicorn api.main:app, celery -A coaching.worker.app)
 │   ├── Dockerfile
-│   ├── main.py                       # FastAPI app: POST /detect, POST /analysis, GET /analysis/{task_id}
-│   ├── detection.py                  # YOLO model loading; run_detection() (id'd detections); select_holds() lookup
-│   ├── worker.py                     # Celery app: analysis task builds the coaching prompt + calls Claude, returns JSON steps
-│   ├── redis_client.py               # async Redis client for idempotency-key + detections-cache reservations
-│   ├── bolts.py                      # bolt-hole detection on the full-res photo
-│   ├── scale.py                      # bolt grid fit, panels, hold distances + confidence tiers, wall length
-│   ├── angle.py                      # wall steepness at each hold, from the bolt grid + phone tilt
-│   ├── volume.py                     # volume face angles (not wired into the API yet, slice 14)
-│   ├── eval_scale.py, eval_angle.py  # dev-only: accuracy reports against the reference photos
-│   ├── eval_field.py                 # dev-only: replays the real-phone field captures; run before/after any change
-│   ├── eval_volume.py, fakewall.py   # dev-only: synthetic walls with volumes, and their scoring
-│   ├── eval_volume_field.py          # dev-only: volume fits on the real field photos
-│   ├── draw_volume_corners.py        # dev-only: click volume corners to record ground truth
-│   ├── experiments/                  # one-off experiments (surface-normal network), separate env
+│   ├── TESTING_PLAN.md               # test strategy, concurrency and load-test reasoning
+│   ├── api/                          # the web server the app talks to
+│   │   ├── main.py                   # FastAPI app: POST /detect, POST /analysis, GET /analysis/{task_id}, POST /dev/volume-scan
+│   │   └── redis_client.py           # async Redis client for idempotency-key + detections-cache reservations
+│   ├── coaching/                     # the background job that writes the climbing steps
+│   │   └── worker.py                 # Celery app: analysis task builds the coaching prompt + calls Claude, returns JSON steps
+│   ├── wall_analysis/                # reading the photo: holds, bolt grid, distances, angles
+│   │   ├── detection.py              # YOLO model loading; run_detection() (id'd detections); select_holds() lookup
+│   │   ├── bolts.py                  # bolt-hole detection on the full-res photo
+│   │   ├── scale.py                  # bolt grid fit, panels, hold distances + confidence tiers, wall length
+│   │   ├── angle.py                  # wall steepness at each hold, from the bolt grid + phone tilt
+│   │   ├── volume.py                 # volume face geometry (not wired into /analysis yet, slice 14)
+│   │   └── volume_scan.py            # volume scan test feature: photo + sideways burst -> face angles
+│   ├── accuracy_checks/              # dev-only scripts, run as `uv run python -m accuracy_checks.<name>`
+│   │   ├── eval_field.py             # replays the real-phone field captures; run before/after any change
+│   │   ├── eval_scale.py, eval_angle.py # accuracy reports against the reference photos
+│   │   ├── eval_volume.py, fakewall.py  # synthetic walls with volumes, and their scoring
+│   │   ├── eval_volume_field.py      # volume fits on the real field photos
+│   │   └── draw_volume_corners.py    # click volume corners to record ground truth
+│   ├── experiments/two_photo/        # parked two-photo volume experiment; synth.py also feeds test_volume_scan's slow tests
 │   ├── field_captures/               # 15 real-phone captures (photo + tilt + truth.json), 2026-11-18
+│   ├── field_captures_volumes/       # measured volumes (photo A/B/edge + tape), 2026-11-25
 │   ├── tests/                        # every pytest file; run from backend/ (testpaths in pyproject.toml)
 │   │   ├── conftest.py               # fakeredis + mocked Celery task fixtures, autouse
 │   │   ├── test_main.py              # pytest for the API endpoints
 │   │   ├── test_redis_client.py      # pytest for redis_client.py's env-var wiring
 │   │   ├── test_worker.py            # pytest for the Celery task + broker/backend wiring
 │   │   ├── test_concurrency.py       # pytest: idempotency race-safety under concurrent requests
-│   │   └── test_detection.py, test_bolts.py, test_scale.py, test_scale_panels.py, test_angle.py,
-│   │       test_main_angle.py, test_volume.py, test_panels_reference.py
-│   ├── load_test/
-│   │   └── simulate_load.py          # async load-test script against a real stack (not part of pytest)
+│   │   ├── test_detection.py, test_bolts.py, test_scale.py, test_scale_panels.py, test_angle.py,
+│   │   │   test_main_angle.py, test_volume.py, test_volume_scan.py, test_panels_reference.py
+│   │   ├── freeze_reference_index.py # re-freezes data/reference_bolt_index.json (human approval only)
+│   │   ├── data/                     # frozen reference bolt index for the regression guard
+│   │   └── load/
+│   │       └── simulate_load.py      # async load-test script against a real stack (not part of pytest)
 │   └── models/
-│       ├── best.pt                   # trained YOLO weights (expected filename)
+│       ├── best.pt                   # trained YOLO weights (expected filename, gitignored)
 │       └── README.md
 └── mobile/ML-Rock-Climbing-App/
     ├── README.md

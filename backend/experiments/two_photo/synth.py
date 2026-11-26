@@ -1,7 +1,7 @@
 """Synthetic volume-scan test cases: a photo plus a sideways burst. Dev only.
 
 Used by backend/tests/test_volume_scan.py (acceptance criterion 1 of
-docs/features/volume_scan.md) through sweep_case() and scenes().
+docs/milestones/v0.2/38-volume-scan-trial/spec.md) through sweep_case() and scenes().
 
 A small ray caster, separate from fakewall.py: fakewall draws in image space
 (its grain is screen noise), so the same wall would look different from each
@@ -19,8 +19,8 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/
-import fakewall  # noqa: E402
-import volume  # noqa: E402
+from accuracy_checks import fakewall  # noqa: E402
+from wall_analysis import volume  # noqa: E402
 
 WIDTH, HEIGHT = fakewall.WIDTH, fakewall.HEIGHT
 BOLT_SPACING_CM = 25.0

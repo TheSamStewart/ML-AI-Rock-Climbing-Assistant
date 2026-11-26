@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Accelerometer } from 'expo-sensors'
 
 //The phone's tilt at the moment a photo is taken, so the backend can turn the
-//wall's shape in the photo into an angle from vertical (backend/angle.py).
+//wall's shape in the photo into an angle from vertical (backend/wall_analysis/angle.py).
 //Accelerometer reading in G in the device frame (x right, y up the screen,
 //z out of the screen). The backend works out the Android/iOS sign difference
 //itself, so the raw reading is sent as is.

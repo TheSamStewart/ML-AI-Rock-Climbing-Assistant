@@ -13,7 +13,7 @@ type FailureResponse = {
   error: string
 }
 
-//Shape of the LLM coaching output - keep in sync with COACHING_OUTPUT_SCHEMA in backend/worker.py
+//Shape of the LLM coaching output - keep in sync with COACHING_OUTPUT_SCHEMA in backend/coaching/worker.py
 
 export type ClimbStep = {
   step_number: number

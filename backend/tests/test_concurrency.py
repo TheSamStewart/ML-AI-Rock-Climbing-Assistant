@@ -4,7 +4,7 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from main import app
+from api.main import app
 
 # mock_celery_task and mock_redis_client are autouse fixtures from conftest.py.
 # Both patch attributes on `main`, so every concurrent coroutine below shares

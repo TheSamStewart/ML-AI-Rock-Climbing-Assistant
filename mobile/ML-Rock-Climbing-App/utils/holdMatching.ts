@@ -1,6 +1,6 @@
 import type { Detection } from '@/api/detectHolds'
 
-//Client-side port of backend/detection.py's per-detection matching logic
+//Client-side port of backend/wall_analysis/detection.py's per-detection matching logic
 //(from the pre-refactor worker.py) - detection and selection both now happen
 //before submission, so a tap needs to resolve to one of the already-fetched
 //detections rather than waiting for the backend to match it after the fact.

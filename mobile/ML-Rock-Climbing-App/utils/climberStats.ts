@@ -1,5 +1,5 @@
 //Climber height and arm span (slice 15), both optional - keep the ranges in
-//sync with CLIMBER_RANGES_CM in backend/main.py.
+//sync with CLIMBER_RANGES_CM in backend/api/main.py.
 
 export const CLIMBER_HEIGHT_STORAGE_KEY = 'climberHeightCm'
 export const CLIMBER_ARM_SPAN_STORAGE_KEY = 'climberArmSpanCm'

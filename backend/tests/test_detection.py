@@ -9,8 +9,8 @@ import pytest
 import torch
 from PIL import Image
 
-import detection
-from detection import (
+from wall_analysis import detection
+from wall_analysis.detection import (
     CONFIDENCE_FLOORS,
     MAX_INPUT_SIDE,
     PREDICT_KWARGS,
@@ -172,7 +172,7 @@ def _fake_model(entries, names=None, masks_none=False):
 
 def _run(model, image=None):
     image = image or Image.new("RGB", (W, H))
-    with patch("detection.get_model", return_value=model):
+    with patch("wall_analysis.detection.get_model", return_value=model):
         return run_detection(image)
 
 
@@ -257,7 +257,7 @@ def reset_model_cache():
 
 
 def test_get_model_loads_once_and_caches(reset_model_cache):
-    with patch("detection.YOLO") as mock_yolo:
+    with patch("wall_analysis.detection.YOLO") as mock_yolo:
         first = detection.get_model()
         second = detection.get_model()
 

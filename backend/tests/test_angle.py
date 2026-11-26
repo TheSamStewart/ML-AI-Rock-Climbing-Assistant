@@ -14,7 +14,7 @@ import math
 import numpy as np
 import pytest
 
-import angle
+from wall_analysis import angle
 
 G = 9.81
 
