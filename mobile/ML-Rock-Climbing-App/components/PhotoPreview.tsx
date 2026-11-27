@@ -96,6 +96,7 @@ export function PhotoPreview({
 
   //Off by default: the app can't see whether the floor and the top of the
   //wall are both in frame, so only the user's "yes" makes it the full height.
+  //Back to off for every new photo - Retake unmounts this component.
 
   const [wholeWallInPhoto, setWholeWallInPhoto] = useState(false)
 
@@ -115,6 +116,13 @@ export function PhotoPreview({
     detectMutate({ uri, gravity })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uri])
+
+  //wholeWallInPhoto is only read when Submit is pressed, so the switch is
+  //locked whenever a flip couldn't reach the next /analysis request: while a
+  //submit is in flight, or after detection failed (no submit is possible
+  //until Retake, which resets it). Before/while detecting it stays live.
+
+  const wholeWallLocked = isPending || isDetectError
 
   const detections = useMemo(() => detectData?.detections ?? [], [detectData])
   const detectionId = detectData?.detection_id ?? null
@@ -514,10 +522,17 @@ export function PhotoPreview({
             <Text style={styles.hintText}>Detecting holds…</Text>
           </View>
         )}
-        {/* Tells the coach whether the wall length is the full wall's height (slice 16). */}
+        {/* Tells the coach whether the wall length is the full wall's height (slice 16).
+            Label dimmed with the switch when locked, so it reads as disabled. */}
         <View style={styles.wholeWallRow}>
-          <Text style={styles.wholeWallText}>Whole wall in the photo (floor to top)</Text>
-          <Switch value={wholeWallInPhoto} onValueChange={setWholeWallInPhoto} />
+          <Text style={[styles.wholeWallText, wholeWallLocked && styles.wholeWallTextDisabled]}>
+            Whole wall in the photo (floor to top)
+          </Text>
+          <Switch
+            value={wholeWallInPhoto}
+            onValueChange={setWholeWallInPhoto}
+            disabled={wholeWallLocked}
+          />
         </View>
         <View style={styles.buttonsRow}>
           <Button onPress={onRetake} title="Retake" />
@@ -621,6 +636,9 @@ const styles = StyleSheet.create({
   },
   wholeWallText: {
     color: 'white',
+  },
+  wholeWallTextDisabled: {
+    opacity: 0.5,
   },
   detectingRow: {
     flexDirection: 'row',
