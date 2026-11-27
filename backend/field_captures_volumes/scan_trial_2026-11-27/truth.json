@@ -1,0 +1,209 @@
+{
+  "_help": "Truth for accuracy_checks/eval_volume_scan.py (#38). One entry per saved scan in backend/field_captures_scans/ (every trial-1 scan is listed, so the replay knows the set for spec AC 6). angle_deg: the human's level reading, degrees from vertical, + overhang / - slab; null = not measured. polygon: the face's outline on the scan's upright photo.jpg, normalised [x, y]; APPROXIMATE, drawn by the agent from the photo on 2026-11-27 (face edges read from shading; the wedge's redrawn the same day against the YOLO outline after the first drawing was found 0.012 too high), used only to pair app faces with measured faces. bolt_spacing_cm: the gym's real spacing (the scans were sent with 20).",
+  "bolt_spacing_cm": 25.0,
+  "scans": {
+    "2026-11-27_103720_5a055561": {
+      "image": null,
+      "volume": "small blue volume at a panel join, whole-wall distance",
+      "wall_angle_deg": null,
+      "faces": []
+    },
+    "2026-11-27_103832_cb310826": {
+      "image": null,
+      "volume": "pink triangle, bottom of wall",
+      "wall_angle_deg": null,
+      "faces": []
+    },
+    "2026-11-27_104222_ab74269e": {
+      "image": 1,
+      "volume": "orange triangular pyramid, apex at the bolt",
+      "wall_angle_deg": null,
+      "faces": [
+        {
+          "name": "left",
+          "angle_deg": -48,
+          "points": "up-left",
+          "polygon": [
+            [
+              0.548,
+              0.69
+            ],
+            [
+              0.345,
+              0.748
+            ],
+            [
+              0.465,
+              0.733
+            ]
+          ]
+        },
+        {
+          "name": "right",
+          "angle_deg": 7,
+          "points": "right",
+          "polygon": [
+            [
+              0.548,
+              0.69
+            ],
+            [
+              0.465,
+              0.733
+            ],
+            [
+              0.575,
+              0.805
+            ]
+          ]
+        },
+        {
+          "name": "bottom",
+          "angle_deg": 30,
+          "points": "down-left",
+          "polygon": [
+            [
+              0.345,
+              0.748
+            ],
+            [
+              0.465,
+              0.733
+            ],
+            [
+              0.575,
+              0.805
+            ]
+          ]
+        }
+      ]
+    },
+    "2026-11-27_110448_f0775720": {
+      "image": 2,
+      "volume": "long red wedge, rising to the right",
+      "wall_angle_deg": 30,
+      "faces": [
+        {
+          "name": "top",
+          "angle_deg": -40,
+          "points": "up",
+          "polygon": [
+            [
+              0.41,
+              0.687
+            ],
+            [
+              0.5,
+              0.668
+            ],
+            [
+              0.6,
+              0.653
+            ],
+            [
+              0.7,
+              0.637
+            ],
+            [
+              0.76,
+              0.626
+            ],
+            [
+              0.775,
+              0.628
+            ],
+            [
+              0.74,
+              0.643
+            ],
+            [
+              0.7,
+              0.652
+            ],
+            [
+              0.6,
+              0.667
+            ],
+            [
+              0.5,
+              0.68
+            ],
+            [
+              0.42,
+              0.688
+            ]
+          ]
+        },
+        {
+          "name": "bottom",
+          "angle_deg": 53,
+          "points": "down",
+          "polygon": [
+            [
+              0.42,
+              0.688
+            ],
+            [
+              0.5,
+              0.68
+            ],
+            [
+              0.6,
+              0.667
+            ],
+            [
+              0.7,
+              0.652
+            ],
+            [
+              0.74,
+              0.643
+            ],
+            [
+              0.775,
+              0.628
+            ],
+            [
+              0.735,
+              0.665
+            ],
+            [
+              0.7,
+              0.681
+            ],
+            [
+              0.6,
+              0.69
+            ],
+            [
+              0.525,
+              0.699
+            ],
+            [
+              0.45,
+              0.693
+            ]
+          ]
+        }
+      ]
+    },
+    "2026-11-27_111637_0850f4b3": {
+      "image": 3,
+      "volume": "small blue pentagon",
+      "wall_angle_deg": null,
+      "faces": []
+    },
+    "2026-11-27_111917_9ec3bb3c": {
+      "image": 3,
+      "volume": "small blue pentagon",
+      "wall_angle_deg": null,
+      "faces": []
+    },
+    "2026-11-27_113654_afb4dee8": {
+      "image": 5,
+      "volume": "large pink volume, bottom",
+      "wall_angle_deg": null,
+      "faces": []
+    }
+  }
+}

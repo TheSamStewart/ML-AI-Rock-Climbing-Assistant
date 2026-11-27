@@ -1,0 +1,3 @@
+couldn't do again, this looks pretty straightforward too
+
+also feel like the whole wall in photo slider could be silently failing if I press after image is taken

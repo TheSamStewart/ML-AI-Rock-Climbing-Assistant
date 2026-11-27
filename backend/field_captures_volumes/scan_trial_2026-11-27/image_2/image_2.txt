@@ -1,0 +1,8 @@
+actual v yield
+
+top face -40 vs 67 
+bottom face 53 vs -60
+wall angle 30
+
+faces are fucked again
+

@@ -55,7 +55,7 @@ MIN_GAP = 0.04
 UNIQUE_SEP_CM = 4.0
 #Context kept around the volume in the sweep crop (px at SWEEP_SCALE).
 CROP_MARGIN = 40
-#SIFT features are found at this scale; FLANN matches pass Lowe's ratio test.
+#SIFT features are found at this scale; brute-force matches pass Lowe's ratio test.
 FEATURE_SCALE = 0.5
 RATIO = 0.8
 #Wall homography: RANSAC tolerance (full-res px) and the support a frame needs.
@@ -67,9 +67,12 @@ DETECTION_DILATE_PX = 25
 #A frame closer than this to the photo's camera gives no usable parallax; one
 #further than this is a wrong pose, not a step.
 MIN_BASELINE_CM = 5.0
-MAX_BASELINE_CM = 300.0
+MAX_BASELINE_CM = 500.0
 MIN_FRAMES = 2
 MAX_FRAMES = 12
+#An outline smaller than this (full-res px^2) is no volume: a mis-tap, or a
+#collinear / single-point polygon.
+MIN_POLYGON_AREA_PX = 100.0
 #Faces: RANSAC tolerance (cm), minimum points per face, the share of a
 #plane's inliers that must form one patch, and the share of all points a face
 #needs to count towards the depth.
@@ -85,9 +88,116 @@ RANSAC_SAMPLE = 4000
 WALL_PLANE_H_CM = 4.0
 WALL_PARALLEL_COS = 0.97
 
+#Line-up (slice 5). Each burst photo gets a wall homography (photo -> frame):
+#  - directly, when enough of the photo's wall features match it (an anchor), or
+#  - through a posed neighbour (up to CHAIN_REACH photos away in the burst):
+#    the neighbour -> frame homography on all features, tried for up to
+#    CHAIN_PLANES planes, composed with the neighbour's own.
+#Either way the guess is then refined against the photo: the frame is warped
+#into the photo's view (so the wall looks as it does in the photo, however far
+#round the user walked), and the photo's wall features are matched to it near
+#where the guess puts them (GATE_COARSE_PX, then GATE_FINE_PX), together with
+#the posed neighbours' wall features. The refined homography is kept only if
+#it passes the pose check: MIN_WALL_INLIERS inliers, MIN_PHOTO_INLIERS of
+#them straight from the photo (so chained errors can't drift unchecked), and
+#the wall agreeing with the photo once warped. "Agreeing" is a peak test, not
+#a level: a correct pose must beat the same pose nudged NCC_NUDGE_PX by
+#MIN_NCC_PEAK. On trial 1 a level couldn't work - an oblique frame's warp is
+#soft, so a correct pose scored 0.11-0.24 while a near-frontal pose 15 px off
+#still scored up to 0.23 - but every correct pose beat its nudged copies by
+#0.11 or more, and the nudged copies sat at -0.16..0.09.
+ANCHOR_MIN_INLIERS = 12
+GATE_COARSE_PX = 80.0
+GATE_FINE_PX = 20.0
+COARSE_RANSAC_PX = 8.0
+CHAIN_RANSAC_PX = 8.0
+CHAIN_PLANES = 3
+CHAIN_REACH = 2
+MIN_PHOTO_INLIERS = 8
+MIN_WALL_NCC = 0.08
+MIN_NCC_PEAK = 0.06
+NCC_NUDGE_PX = 12.0
+MIN_NCC_PIXELS = 2000
+#High-pass for the wall check (sigma, px at FEATURE_SCALE): lighting changes
+#between views, texture doesn't.
+NCC_HIGHPASS_SIGMA = 6.0
+#Faces from the base outline (slice 7). Real volume faces are mostly smooth
+#plastic with nothing for the sweep to match: on trial 1 only edges and ridges
+#came back as 3D points, so planes fitted to dense points found few faces
+#(synthetic faces are speckled, which is why that passed AC 1). A face that
+#meets the wall is found from its base edge instead. The volume is convex, so
+#the face's plane is the supporting plane through that edge: the steepest tilt
+#up from the wall that the raised points beside the edge reach
+#(BASE_TILT_PERCENTILE, against stray matches), refined to the median tilt of
+#the points within SUPPORT_DEG of it. An outline edge only counts as a base
+#edge when the sweep puts the points along it on the wall (a raised edge seen
+#from the side, like a box's front edge from above, is not one). Faces that
+#don't meet the wall still come from the dense plane fit below.
+BASE_SIMPLIFY_FRAC = 0.03     # of the outline's perimeter (cv2.approxPolyDP)
+MIN_BASE_EDGE_CM = 8.0
+MIN_RAISED_CM = 1.5           # points this far off the wall count as raised
+MIN_INSET_CM = 3.0            # raised points nearer the edge than this (in the wall plane) are ignored
+BASE_TILT_PERCENTILE = 95
+MIN_EDGE_POINTS = 20
+SUPPORT_DEG = 4.0
+EDGE_BAND_PX = 8.0            # full-res px inside the outline: the points that say if an edge is on the wall
+MIN_EDGE_BAND_POINTS = 10
+#The band's 25th-percentile height must be under this: a sloping face is a little
+#off the wall even 8 px in, and stray matches sit high. Trial 1: base edges
+#0-3 cm (the wedge's lower edges 7), raised outline edges 11-15 cm.
+BASE_EDGE_LOW_PERCENTILE = 25
+BASE_EDGE_MAX_H_CM = 8.0
+DUPLICATE_FACE_DEG = 8.0      # a dense-fit face this close to a base-edge face is the same face
+
+#No blur gate: tried in slice 5 (sharpness below a share of the burst's
+#median), but trial 1's blurred and sharp frames overlap too much for any
+#cut-off (28 vs 28-45 vs 55), and the pose check already decides.
+#The wall mask is decided on a grid this coarse (full-res px).
+MASK_STEP_PX = 16
+
+
+#Focal length (slice 6). With no EXIF focal, phones' 26 mm equivalent is for
+#the full 4:3 sensor, and a photo cropped to the screen's shape (the app's are
+#1776 x 3840) keeps the sensor's long side. angle.focal_px spreads 26 mm over
+#the CROP's diagonal instead: 2542 px where 2884 px is right, and with burst
+#photos turned 30-45 deg that 13 % error broke the poses (trial 1). For a 4:3
+#photo both give the same value. angle.focal_px itself is left alone: /detect
+#uses it and must not change in this issue (spec AC 4).
+SENSOR_LONG_SIDE_35MM = 0.8 * angle.DIAGONAL_35MM  # a 4:3 frame's long side, in 35 mm-equivalent mm
+#The cross-check: oblique views of the square bolt grid fix the focal length
+#(its two axes must come out the same length). Views turned less than this
+#give no useful estimate.
+FOCAL_CHECK_MIN_TURN_DEG = 15.0
+
+
+def _focal_px(size, focal_35mm: float | None) -> float:
+    if focal_35mm:
+        return angle.focal_px(size, focal_35mm)  # EXIF's equivalent is for the image as recorded
+    return angle.DEFAULT_FOCAL_35MM / SENSOR_LONG_SIDE_35MM * float(max(size))
+
+
+def _focal_check(H_grid, size) -> float | None:
+    """The focal length (px) at which the bolt grid's two axes come out the
+    same length, for one view: H_grid maps grid units to that view's pixels.
+    Assumes square pixels and the principal point at the centre."""
+    w, h = size
+    G = np.array([[1, 0, -w / 2], [0, 1, -h / 2], [0, 0, 1.0]]) @ H_grid
+    (a1, b1, c1), (a2, b2, c2) = G[:, 0], G[:, 1]
+    den = c2 * c2 - c1 * c1
+    if abs(den) < 1e-12:
+        return None
+    f2 = (a1 * a1 + b1 * b1 - a2 * a2 - b2 * b2) / den
+    return float(np.sqrt(f2)) if f2 > 0 else None
+
 
 class ScanError(ValueError):
-    """A scan that can't run, with a message fit for the user."""
+    """A scan that can't run, with a message fit for the user. `diagnostics`
+    is the per-frame list (as in the result's `frame_diagnostics`) when the
+    scan got as far as lining frames up, else None."""
+
+    def __init__(self, message: str, diagnostics: list[dict] | None = None):
+        super().__init__(message)
+        self.diagnostics = diagnostics
 
 
 def _gray(image: Image.Image) -> np.ndarray:
@@ -99,6 +209,11 @@ def _polygon_mask(polygon_norm, size) -> np.ndarray:
     pts = np.array([[float(p["x"]) * w, float(p["y"]) * h] for p in polygon_norm], np.float64)
     if len(pts) < 3 or not np.isfinite(pts).all():
         raise ScanError("The volume outline is not a polygon.")
+    #A collinear or single-point outline still fills a line of pixels, so the
+    #mask check below alone doesn't catch it. The hull's area, not the
+    #polygon's: a self-crossing outline's lobes would cancel.
+    if cv2.contourArea(cv2.convexHull(pts.astype(np.float32))) < MIN_POLYGON_AREA_PX:
+        raise ScanError("The volume outline is empty.")
     mask = np.zeros((h, w), np.uint8)
     cv2.fillPoly(mask, [np.round(pts).astype(np.int32)], 1)
     if not mask.any():
@@ -114,11 +229,14 @@ def _features(gray: np.ndarray):
 
 
 def _match(des_a, des_b) -> np.ndarray:
-    if des_a is None or des_b is None or len(des_a) < 2 or len(des_b) < 2:
+    """Lowe-ratio matches a -> b. Brute force, not FLANN: FLANN's randomised
+    trees draw on the C library's rand(), so the same scan gave different
+    frames and faces from run to run (slice 4, 2026-11-27)."""
+    if des_a is None or des_b is None or len(des_a) < 1 or len(des_b) < 2:
         return np.zeros((0, 2), int)
-    flann = cv2.FlannBasedMatcher(dict(algorithm=1, trees=5), dict(checks=64))
+    bf = cv2.BFMatcher(cv2.NORM_L2)
     pairs = [(m[0].queryIdx, m[0].trainIdx)
-             for m in flann.knnMatch(des_a.astype(np.float32), des_b.astype(np.float32), k=2)
+             for m in bf.knnMatch(des_a.astype(np.float32), des_b.astype(np.float32), k=2)
              if len(m) == 2 and m[0].distance < RATIO * m[1].distance]
     return np.array(pairs, int).reshape(-1, 2)
 
@@ -144,16 +262,18 @@ def _photo_pose(lattice, centre_px, K, spacing_cm):
         r1, r2, t = -r1, -r2, -t
     U, _, Vt = np.linalg.svd(np.column_stack([r1, r2, np.cross(r1, r2)]))
     R = U @ Vt
-    return {"R": R, "t": t * spacing_cm, "panel": panel, "axis_ratio": float(l1 / l2)}
+    return {"R": R, "t": t * spacing_cm, "panel": panel, "axis_ratio": float(l1 / l2), "H": H}
 
 
-def _frame_pose(Kp, Kf, R, t, xa, xb):
-    """A frame's R, t from the photo->frame wall homography; None if unusable."""
-    if len(xa) < MIN_WALL_INLIERS:
-        return None
-    H, inliers = cv2.findHomography(xa, xb, cv2.RANSAC, WALL_RANSAC_PX)
-    if H is None or inliers is None or int(inliers.sum()) < MIN_WALL_INLIERS:
-        return None
+def _sharpness(gray: np.ndarray) -> float:
+    """Variance of the Laplacian at FEATURE_SCALE: low = blurred (diagnostic only)."""
+    small = cv2.resize(gray, None, fx=FEATURE_SCALE, fy=FEATURE_SCALE, interpolation=cv2.INTER_AREA)
+    return float(cv2.Laplacian(small, cv2.CV_64F).var())
+
+
+def _pose_from_h(Kp, Kf, R, t, H):
+    """A frame's R, t from the photo->frame wall homography H, decomposed with
+    the photo's known wall plane: H = Kf (R + t n^T / d) Kp^-1."""
     n_c = R @ np.array([0.0, 0.0, 1.0])
     off = float((R.T @ t)[2])  # the wall in the photo's camera: n_c . X = off
     want = n_c * np.sign(off)  # cv2's normal convention: n . X = d > 0
@@ -163,7 +283,292 @@ def _frame_pose(Kp, Kf, R, t, xa, xb):
     Rrel, trel = Rs[k], ts[k].ravel() * abs(off)
     Rf, tf = Rrel @ R, Rrel @ t + trel
     baseline = float(np.linalg.norm(-R.T @ t + Rf.T @ tf))
-    return {"R": Rf, "t": tf, "wall_inliers": int(inliers.sum()), "baseline_cm": baseline}
+    turn = float(np.degrees(np.arccos(np.clip((np.trace(Rrel) - 1) / 2, -1.0, 1.0))))
+    return {"R": Rf, "t": tf, "baseline_cm": baseline, "turn_deg": turn}
+
+
+def _wall_mask(size, lattice, panel, excluded) -> np.ndarray:
+    """Photo pixels on the volume's panel (most of the 6 nearest bolts are on
+    it), outside `excluded`. Decided on a MASK_STEP_PX grid."""
+    w, h = size
+    gy, gx = np.mgrid[0:h:MASK_STEP_PX, 0:w:MASK_STEP_PX]
+    nn, _ = scale.knn(np.column_stack([gx.ravel(), gy.ravel()]).astype(float), lattice.xy, 6)
+    valid = nn >= 0
+    same = (lattice.panel[np.where(valid, nn, 0)] == panel) & valid
+    on = (same.sum(1) > 0.5 * valid.sum(1)) & valid.any(1)
+    coarse = on.reshape(gy.shape).astype(np.uint8)
+    return cv2.resize(coarse, (w, h), interpolation=cv2.INTER_NEAREST).astype(bool) & ~excluded
+
+
+def _to(H, xy) -> np.ndarray:
+    xy = np.asarray(xy, np.float64).reshape(-1, 1, 2)
+    if not len(xy):
+        return xy.reshape(0, 2)
+    return cv2.perspectiveTransform(xy, H).reshape(-1, 2)
+
+
+def _gated(xa, da, xb, db, gate) -> np.ndarray:
+    """Matches a -> b where a's points are already in b's coordinates: only b's
+    features within `gate` px are candidates, and the best must pass the ratio
+    test against the second best of those. Brute force per cell, deterministic."""
+    if len(xa) == 0 or len(xb) < 2 or da is None or db is None:
+        return np.zeros((0, 2), int)
+    cell_b = np.floor(xb / gate).astype(np.int64)
+    order = np.lexsort((cell_b[:, 1], cell_b[:, 0]))
+    cells = {}
+    for j in order:
+        cells.setdefault((int(cell_b[j, 0]), int(cell_b[j, 1])), []).append(j)
+    out = []
+    da, db = da.astype(np.float32), db.astype(np.float32)
+    for i, (cx, cy) in enumerate(np.floor(xa / gate).astype(np.int64)):
+        cand = [j for dx in (-1, 0, 1) for dy in (-1, 0, 1) for j in cells.get((int(cx) + dx, int(cy) + dy), ())]
+        if not cand:
+            continue
+        cand = np.array(cand)
+        cand = cand[np.hypot(*(xb[cand] - xa[i]).T) <= gate]
+        if not len(cand):
+            continue
+        dist = np.linalg.norm(db[cand] - da[i], axis=1)
+        o = np.argsort(dist, kind="stable")
+        if len(o) >= 2 and dist[o[0]] >= RATIO * dist[o[1]]:
+            continue
+        out.append((i, int(cand[o[0]])))
+    return np.array(out, int).reshape(-1, 2)
+
+
+def _rectify(fgray, H, size):
+    """The frame warped into the photo's view through H (photo -> frame), at
+    FEATURE_SCALE, with its valid-pixel mask."""
+    w, h = size
+    S = np.diag([FEATURE_SCALE, FEATURE_SCALE, 1.0])
+    M = H @ np.linalg.inv(S)
+    out = (int(round(w * FEATURE_SCALE)), int(round(h * FEATURE_SCALE)))
+    rect = cv2.warpPerspective(fgray, M, out, flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+    valid = cv2.warpPerspective(np.full_like(fgray, 255), M, out, flags=cv2.INTER_NEAREST | cv2.WARP_INVERSE_MAP)
+    return rect, valid
+
+
+def _highpass(img: np.ndarray) -> np.ndarray:
+    img = img.astype(np.float32)
+    return img - cv2.GaussianBlur(img, (0, 0), NCC_HIGHPASS_SIGMA)
+
+
+def _wall_ncc(ctx, fgray, H) -> tuple[float, float] | None:
+    """Agreement of the plain wall around the volume, the photo against the
+    frame warped into the photo's view through H: (NCC at H, its lead over H
+    nudged NCC_NUDGE_PX up / down / left / right in the frame). None with too
+    little wall in view."""
+    def ncc(Hx, m=None):
+        rect, valid = _rectify(fgray, Hx, ctx["size"])
+        if m is None:
+            m = ctx["wall_small"] & (cv2.erode(valid, np.ones((5, 5), np.uint8)) > 0)
+            if m.sum() < MIN_NCC_PIXELS:
+                return None, m
+        a, b = ctx["photo_hp"][m], _highpass(rect)[m]
+        a, b = a - a.mean(), b - b.mean()
+        return float((a * b).mean() / (a.std() * b.std() + 1e-6)), m
+
+    at, m = ncc(H)
+    if at is None:
+        return None
+    s = NCC_NUDGE_PX
+    nudged = [ncc(np.array([[1, 0, dx], [0, 1, dy], [0, 0, 1.0]]) @ H, m)[0]
+              for dx, dy in ((s, 0), (-s, 0), (0, s), (0, -s))]
+    return at, at - max(nudged)
+
+
+def _refine(ctx, k, Hpred, Hs, gate, tol):
+    """Photo -> frame k homography from (a) the photo's wall features against
+    the frame warped into the photo's view by Hpred, and (b) posed neighbours'
+    wall features against frame k, all in photo coordinates. Returns (H, counts)."""
+    size, (xk, dk) = ctx["size"], ctx["feats"][k]
+    A, B, from_photo = [], [], []
+    rect, valid = _rectify(ctx["grays"][k], Hpred, size)
+    kp, des = cv2.SIFT_create(nfeatures=20000).detectAndCompute(rect, valid)
+    if des is not None and len(kp):
+        xr = np.array([p.pt for p in kp], np.float64) / FEATURE_SCALE
+        M = _gated(ctx["xy_w"], ctx["des_w"], xr, des, gate)
+        if len(M):
+            A.append(ctx["xy_w"][M[:, 0]])
+            B.append(_to(Hpred, xr[M[:, 1]]))
+            from_photo.append(np.ones(len(M), bool))
+    w, h = size
+    for j in range(max(0, k - CHAIN_REACH), min(len(Hs), k + CHAIN_REACH + 1)):
+        if j == k or Hs[j] is None:
+            continue
+        xj, dj = ctx["feats"][j]
+        back = _to(np.linalg.inv(Hs[j]), xj)  # frame j's features in photo px
+        ij = np.round(back).astype(int)
+        inside = (ij[:, 0] >= 0) & (ij[:, 1] >= 0) & (ij[:, 0] < w) & (ij[:, 1] < h)
+        on_wall = np.zeros(len(xj), bool)
+        on_wall[inside] = ctx["wall_mask"][ij[inside, 1], ij[inside, 0]]
+        if not on_wall.any():
+            continue
+        M = _gated(_to(Hpred, back[on_wall]), dj[on_wall], xk, dk, gate)
+        if len(M):
+            A.append(back[on_wall][M[:, 0]])
+            B.append(xk[M[:, 1]])
+            from_photo.append(np.zeros(len(M), bool))
+    if not A or sum(len(a) for a in A) < MIN_WALL_INLIERS:
+        return None, {"inliers": 0, "photo_inliers": 0}
+    A, B, from_photo = np.vstack(A), np.vstack(B), np.concatenate(from_photo)
+    H, inl = cv2.findHomography(A, B, cv2.RANSAC, tol)
+    if H is None or inl is None:
+        return None, {"inliers": 0, "photo_inliers": 0}
+    inl = inl.ravel().astype(bool)
+    return H, {"inliers": int(inl.sum()), "photo_inliers": int((inl & from_photo).sum())}
+
+
+def _try_frame(ctx, k, Hpred, Hs):
+    """Refine a guess for frame k (coarse, then fine) and run the pose check.
+    Returns (H or None, info)."""
+    H1, c1 = _refine(ctx, k, Hpred, Hs, GATE_COARSE_PX, COARSE_RANSAC_PX)
+    if H1 is None or c1["inliers"] < MIN_WALL_INLIERS:
+        return None, {"reason": "too few wall inliers", "wall_inliers": c1["inliers"]}
+    H2, c2 = _refine(ctx, k, H1, Hs, GATE_FINE_PX, WALL_RANSAC_PX)
+    info = {"wall_inliers": c2["inliers"], "photo_inliers": c2["photo_inliers"]}
+    if H2 is None or c2["inliers"] < MIN_WALL_INLIERS:
+        return None, {**info, "reason": "too few wall inliers"}
+    if c2["photo_inliers"] < MIN_PHOTO_INLIERS:
+        return None, {**info, "reason": "pose check: too few matches with the photo"}
+    check = _wall_ncc(ctx, ctx["grays"][k], H2)
+    if check is not None:
+        info.update(wall_ncc=round(check[0], 2), wall_ncc_peak=round(check[1], 2))
+    if check is None or check[0] < MIN_WALL_NCC or check[1] < MIN_NCC_PEAK:
+        #Not trusted for the sweep, but close enough to chain the next frame
+        #from: that frame is checked against the photo on its own.
+        return None, {**info, "reason": "pose check: the wall doesn't agree with the photo", "_link": H2}
+    return H2, info
+
+
+def _line_up(ctx):
+    """Photo -> frame wall homographies (None where a frame can't be lined up)
+    and per-frame line-up info. Anchors first, then chains outwards. A frame
+    that failed only the wall check still serves as a link in a chain."""
+    n = len(ctx["grays"])
+    Hs, links, info = [None] * n, [None] * n, [{} for _ in range(n)]
+
+    def settle(k, Hk, more, linked_from):
+        link = more.pop("_link", None)
+        info[k].update(more)
+        if Hk is not None:
+            Hs[k] = links[k] = Hk
+            info[k]["linked_from"] = linked_from
+            info[k].pop("reason", None)
+        elif link is not None and links[k] is None:
+            links[k] = link
+
+    for k in range(n):
+        xk, dk = ctx["feats"][k]
+        M = _match(ctx["des_w"], dk)
+        info[k] = {"wall_matches": int(len(M)), "reason": "too few wall matches"}
+        if len(M) < ANCHOR_MIN_INLIERS:
+            continue
+        H, inl = cv2.findHomography(ctx["xy_w"][M[:, 0]], xk[M[:, 1]], cv2.RANSAC, WALL_RANSAC_PX)
+        info[k]["wall_inliers"] = 0 if inl is None else int(inl.sum())
+        if H is None or info[k]["wall_inliers"] < ANCHOR_MIN_INLIERS:
+            info[k]["reason"] = "too few wall inliers"
+            continue
+        settle(k, *_try_frame(ctx, k, H, Hs), None)
+    tried = set()
+    changed = True
+    while changed:
+        changed = False
+        for k in range(n):
+            if Hs[k] is not None:
+                continue
+            reach = sorted(range(max(0, k - CHAIN_REACH), min(n, k + CHAIN_REACH + 1)), key=lambda j: (abs(j - k), j))
+            #Retry a pair only when more of k's neighbours have been lined up since.
+            support = sum(Hs[j] is not None for j in reach)
+            for j in reach:
+                if j == k or links[j] is None or (j, k, support) in tried:
+                    continue
+                tried.add((j, k, support))
+                (xj, dj), (xk, dk) = ctx["feats"][j], ctx["feats"][k]
+                M = _match(dj, dk)
+                a, b = (xj[M[:, 0]], xk[M[:, 1]]) if len(M) else (np.zeros((0, 2)), np.zeros((0, 2)))
+                for _ in range(CHAIN_PLANES):
+                    if len(a) < MIN_WALL_INLIERS:
+                        break
+                    Hjk, inl = cv2.findHomography(a, b, cv2.RANSAC, CHAIN_RANSAC_PX)
+                    if Hjk is None or inl is None or int(inl.sum()) < MIN_WALL_INLIERS:
+                        break
+                    had_link = links[k] is not None
+                    settle(k, *_try_frame(ctx, k, Hjk @ links[j], Hs), j)
+                    if Hs[k] is not None or (links[k] is not None and not had_link):
+                        changed = True
+                    if Hs[k] is not None:
+                        break
+                    keep = ~inl.ravel().astype(bool)
+                    a, b = a[keep], b[keep]
+                if Hs[k] is not None:
+                    break
+    return Hs, info
+
+
+def _segment_distance(px: np.ndarray, p: np.ndarray, q: np.ndarray) -> np.ndarray:
+    d = q - p
+    t = np.clip(((px - p) @ d) / max(float(d @ d), 1e-9), 0.0, 1.0)
+    return np.linalg.norm(px - (p + t[:, None] * d), axis=1)
+
+
+def _base_edge_faces(mask, X, hh, px, backproject, side) -> list[dict]:
+    """Faces through the base outline's edges (see BASE_SIMPLIFY_FRAC).
+    X: confident 3D points (wall frame, cm), hh their heights off the wall, px
+    their full-res photo pixels. `backproject(px, h)` gives wall-frame points.
+    Each edge's face uses only the points nearest that edge in the photo (its
+    region: for a pyramid or a wedge, the volume split along its ridges), so
+    another face's ridge can't lend it a tilt.
+    Returns [{"n": outward normal (wall frame), "support": point indices,
+    "region": point indices, "base_px": the edge's two photo pixels, "alpha": tilt (deg)}]."""
+    cs, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not cs or len(X) == 0:
+        return []
+    c = max(cs, key=cv2.contourArea)
+    poly = cv2.approxPolyDP(c, BASE_SIMPLIFY_FRAC * cv2.arcLength(c, True), True).reshape(-1, 2).astype(float)
+    if len(poly) < 3:
+        return []
+    B = backproject(poly, np.zeros(len(poly)))
+    centre = B.mean(0)
+    z_hat = np.array([0.0, 0.0, side])
+    z = X @ z_hat
+    raised = hh >= MIN_RAISED_CM
+    edges = [(poly[i], poly[(i + 1) % len(poly)]) for i in range(len(poly))]
+    nearest = np.argmin(np.column_stack([_segment_distance(px, p, q) for p, q in edges]), axis=1)
+    out = []
+    for i, (p, q) in enumerate(edges):
+        a, b = B[i], B[(i + 1) % len(B)]
+        length = float(np.linalg.norm(b - a))
+        if length < MIN_BASE_EDGE_CM:
+            continue
+        #On the wall? The confident points in a band just inside this edge.
+        band = (nearest == i) & (_segment_distance(px, p, q) <= EDGE_BAND_PX)
+        if (band.sum() < MIN_EDGE_BAND_POINTS
+                or float(np.percentile(hh[band], BASE_EDGE_LOW_PERCENTILE)) > BASE_EDGE_MAX_H_CM):
+            continue
+        u = (b - a) / length
+        m = np.cross(u, z_hat)
+        m /= np.linalg.norm(m)
+        if (centre - a) @ m > 0:
+            m = -m  # m points out of the volume
+        inset = -((X - a) @ m)
+        region = np.nonzero(nearest == i)[0]
+        idx = region[raised[region] & (inset[region] > MIN_INSET_CM)]
+        if len(idx) < MIN_EDGE_POINTS:
+            continue
+        tilt = np.degrees(np.arctan2(z[idx], inset[idx]))
+        alpha0 = float(np.percentile(tilt, BASE_TILT_PERCENTILE))
+        sup = np.abs(tilt - alpha0) <= SUPPORT_DEG
+        if not sup.any():
+            continue
+        alpha = float(np.median(tilt[sup]))
+        v = -m + np.tan(np.radians(alpha)) * z_hat
+        n = np.cross(u, v / np.linalg.norm(v))
+        n /= np.linalg.norm(n)
+        if n @ m < 0:
+            n = -n
+        out.append({"n": n, "support": idx[sup], "region": region, "base_px": np.array([p, q]), "alpha": alpha})
+    return out
 
 
 def _box(x):
@@ -241,12 +646,13 @@ def scan_volume(photo: Image.Image, frames: list[Image.Image], volume_polygon, d
     started = time.perf_counter()
     if len(frames) < MIN_FRAMES:
         raise ScanError(f"Need at least {MIN_FRAMES} burst photos, got {len(frames)}.")
+    source = list(range(len(frames)))  # each frame's index in the burst as sent
     if len(frames) > MAX_FRAMES:  # evenly spread, keeping both ends of the step
-        keep = np.unique(np.round(np.linspace(0, len(frames) - 1, MAX_FRAMES)).astype(int))
-        frames = [frames[i] for i in keep]
+        source = [int(i) for i in np.unique(np.round(np.linspace(0, len(frames) - 1, MAX_FRAMES)).astype(int))]
+        frames = [frames[i] for i in source]
     size = photo.size
     mask = _polygon_mask(volume_polygon, size)
-    Kp = volume.camera_matrix(size, angle.focal_px(size, focal_35mm))
+    Kp = volume.camera_matrix(size, _focal_px(size, focal_35mm))
     gray = _gray(photo)
 
     found = bolts.detect_bolt_holes(photo, detections)
@@ -267,35 +673,50 @@ def scan_volume(photo: Image.Image, frames: list[Image.Image], volume_polygon, d
             cv2.fillPoly(any_det, [pts], 1)
     any_det = cv2.dilate(any_det | mask.astype(np.uint8),
                          np.ones((2 * DETECTION_DILATE_PX + 1,) * 2, np.uint8)).astype(bool)
+    wall_mask = _wall_mask(size, lattice, pose["panel"], any_det)
     xy_p, des_p = _features(gray)
     ij = np.clip(np.round(xy_p).astype(int), 0, [size[0] - 1, size[1] - 1])
-    nn, _ = scale.knn(xy_p, lattice.xy, 6)
-    on_panel = np.array([np.mean(lattice.panel[r[r >= 0]] == pose["panel"]) > 0.5 if (r >= 0).any() else False
-                         for r in nn])
-    wall_p = ~any_det[ij[:, 1], ij[:, 0]] & on_panel
+    wall_p = wall_mask[ij[:, 1], ij[:, 0]]
+    #Only the photo's wall features are matched: the ratio test looks at the
+    #frame's features, so dropping the others changes no match, and it keeps
+    #the brute-force matcher fast.
+    small_size = (int(round(size[0] * FEATURE_SCALE)), int(round(size[1] * FEATURE_SCALE)))
+    grays = [_gray(f) for f in frames]
+    ctx = {"size": size, "wall_mask": wall_mask, "xy_w": xy_p[wall_p],
+           "des_w": des_p[wall_p] if des_p is not None else None,
+           "wall_small": cv2.resize(wall_mask.astype(np.uint8), small_size, interpolation=cv2.INTER_NEAREST).astype(bool),
+           "photo_hp": _highpass(cv2.resize(gray, small_size, interpolation=cv2.INTER_AREA)),
+           "grays": grays, "feats": [_features(g) for g in grays]}
+    Hs, lineup = _line_up(ctx)
 
+    sharp = [_sharpness(g) for g in grays]
     posed, diagnostics = [], []
     for k, frame in enumerate(frames):
-        fsize = frame.size
-        Kf = volume.camera_matrix(fsize, angle.focal_px(fsize, focal_35mm))
-        fgray = _gray(frame)
-        xy_f, des_f = _features(fgray)
-        M = _match(des_p, des_f)
-        M = M[wall_p[M[:, 0]]] if len(M) else M
-        fp = _frame_pose(Kp, Kf, R, t, xy_p[M[:, 0]], xy_f[M[:, 1]]) if len(M) else None
-        info = {"frame": k, "wall_matches": int(len(M))}
-        if fp is not None:
-            info.update(wall_inliers=fp["wall_inliers"], baseline_cm=round(fp["baseline_cm"], 1))
-            if MIN_BASELINE_CM <= fp["baseline_cm"] <= MAX_BASELINE_CM:
-                small = cv2.resize(fgray, None, fx=SWEEP_SCALE, fy=SWEEP_SCALE,
-                                   interpolation=cv2.INTER_AREA).astype(np.float32)
-                posed.append({**fp, "K": Kf, "small": small})
-                info["used"] = True
+        info = {"frame": k, "source_frame": source[k], "sharpness": round(sharp[k], 1), **lineup[k]}
+        if Hs[k] is not None:
+            Kf = volume.camera_matrix(frame.size, _focal_px(frame.size, focal_35mm))
+            fp = _pose_from_h(Kp, Kf, R, t, Hs[k])
+            if not (np.isfinite(fp["baseline_cm"]) and np.isfinite(fp["turn_deg"])):
+                info["reason"] = "bad pose"
+            else:
+                info.update(baseline_cm=round(fp["baseline_cm"], 1), turn_deg=round(fp["turn_deg"], 1))
+                if not MIN_BASELINE_CM <= fp["baseline_cm"] <= MAX_BASELINE_CM:
+                    info["reason"] = "baseline too short" if fp["baseline_cm"] < MIN_BASELINE_CM else "baseline too long"
+                else:
+                    small = cv2.resize(grays[k], None, fx=SWEEP_SCALE, fy=SWEEP_SCALE,
+                                       interpolation=cv2.INTER_AREA).astype(np.float32)
+                    posed.append({**fp, "K": Kf, "small": small})
+                    info["used"] = True
         info.setdefault("used", False)
         diagnostics.append(info)
+    checks = [_focal_check(Hs[d["frame"]] @ pose["H"], frames[d["frame"]].size) for d in diagnostics
+              if d["used"] and d.get("turn_deg", 0) >= FOCAL_CHECK_MIN_TURN_DEG]
+    checks = [c for c in checks if c is not None]
+    focal_check = round(float(np.median(checks))) if len(checks) >= 2 else None
     if len(posed) < MIN_FRAMES:
         raise ScanError("Couldn't line up enough burst photos with the wall. "
-                        "Keep the volume and the wall around it in frame, and step sideways slowly.")
+                        "Keep the volume and the wall around it in frame, and step sideways slowly.",
+                        diagnostics)
 
     #Sweep on a crop around the volume.
     m_s = cv2.resize(mask.astype(np.uint8), None, fx=SWEEP_SCALE, fy=SWEEP_SCALE,
@@ -325,11 +746,37 @@ def scan_volume(photo: Image.Image, frames: list[Image.Image], volume_polygon, d
     wall_n = R @ np.array([0.0, 0.0, side])
     wall_angle = volume.describe_face(wall_n, wall_n, g)["steepness_deg"]
 
-    faces = []
+    faces, normals = [], []
+    Kp_inv = np.linalg.inv(Kp)
+
+    def backproject(pix, h):
+        pix = np.asarray(pix, np.float64).reshape(-1, 2)
+        r = (R.T @ (np.column_stack([pix, np.ones(len(pix))]) @ Kp_inv.T).T).T
+        return Ca + ((side * np.asarray(h, np.float64) - Ca[2]) / r[:, 2])[:, None] * r
+
+    px_full = np.column_stack([gx + x0, gy + y0]) / SWEEP_SCALE
+    taken = np.zeros(len(X), bool)
+    for bf in _base_edge_faces(mask, X, hh, px_full, backproject, side):
+        #No "turned away from the camera" test: its points were matched in the
+        #photo, so it is seen, and a few degrees of tilt error put a steep
+        #underside's plane behind the camera (trial 1's pyramid bottom).
+        d = volume.describe_face(R @ bf["n"], wall_n, g)
+        pts = np.vstack([bf["base_px"], px_full[bf["region"]]]) * SWEEP_SCALE
+        hull = cv2.convexHull(pts.astype(np.float32)).reshape(-1, 2)
+        faces.append({"steepness_deg": d["steepness_deg"], "facing": d["facing"], "facing_deg": d["facing_deg"],
+                      "outline": [{"x": round(float(px) / SWEEP_SCALE / size[0], 5),
+                                   "y": round(float(py) / SWEEP_SCALE / size[1], 5)} for px, py in hull],
+                      "n_points": int(len(bf["support"])), "method": "base_edge",
+                      "base": [{"x": round(float(bx) / size[0], 5), "y": round(float(by) / size[1], 5)}
+                               for bx, by in bf["base_px"]],
+                      "_h95": float(np.percentile(hh[bf["support"]], 95)) if len(bf["support"]) else 0.0})
+        normals.append(bf["n"])
+        taken[bf["support"]] = True
+
     rng = np.random.default_rng(0)
-    if len(X) >= 3 * MIN_FACE_POINTS:
+    if (~taken).sum() >= 3 * MIN_FACE_POINTS:
         interior = np.array([*np.median(X[:, :2], 0), 0.0])
-        remaining = np.arange(len(X))
+        remaining = np.nonzero(~taken)[0]
         while len(remaining) >= MIN_FACE_POINTS and len(faces) < MAX_FACES:
             fit = _fit_plane(X[remaining], rng)
             if fit is None:
@@ -351,12 +798,15 @@ def scan_volume(photo: Image.Image, frames: list[Image.Image], volume_polygon, d
                 n = -n
             if abs(c[2]) < WALL_PLANE_H_CM and abs(n[2]) > WALL_PARALLEL_COS:
                 continue
+            if any(float(n @ m) > np.cos(np.radians(DUPLICATE_FACE_DEG)) for m in normals):
+                continue
+            normals.append(n)
             d = volume.describe_face(R @ n, wall_n, g)
             hull = cv2.convexHull(np.column_stack([gx[patch] + x0, gy[patch] + y0]).astype(np.float32)).reshape(-1, 2)
             outline = [{"x": round(float(px) / SWEEP_SCALE / size[0], 5), "y": round(float(py) / SWEEP_SCALE / size[1], 5)}
                        for px, py in hull]
             faces.append({"steepness_deg": d["steepness_deg"], "facing": d["facing"], "facing_deg": d["facing_deg"],
-                          "outline": outline, "n_points": int(len(patch)),
+                          "outline": outline, "n_points": int(len(patch)), "method": "surface",
                           "_h95": float(np.percentile(hh[patch], 95))})
     big = [f for f in faces if f["n_points"] >= DEPTH_FACE_FRAC * max(1, len(hh))]
     #An uneven grid fit (axes not equal) leaves the wall's DIRECTION right but
@@ -372,6 +822,9 @@ def scan_volume(photo: Image.Image, frames: list[Image.Image], volume_polygon, d
         "frames_used": len(posed),
         "frames_sent": len(frames),
         "points": int(len(hh)),
+        "wall_features": int(len(ctx["xy_w"])),
+        "focal_px": round(float(Kp[0, 0])),
+        "focal_check_px": focal_check,
         "photo_axis_ratio": round(pose["axis_ratio"], 3),
         "frame_diagnostics": diagnostics,
         "seconds": round(time.perf_counter() - started, 1),

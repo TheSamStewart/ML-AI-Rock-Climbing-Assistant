@@ -457,6 +457,8 @@ async def dev_volume_scan(
             gravity_reading=reading, focal_35mm=focal, bolt_spacing_cm=spacing,
         )
     except volume_scan.ScanError as e:
+        if e.diagnostics is not None:  #why each burst photo did or didn't line up, for the trial analysis
+            record["frame_diagnostics"] = e.diagnostics
         return fail(str(e))
     except Exception:  # noqa: BLE001 - a test feature must not 500
         logger.exception("volume-scan: scan %s failed", scan_id)

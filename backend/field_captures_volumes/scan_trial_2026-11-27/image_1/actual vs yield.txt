@@ -1,0 +1,7 @@
+actual vs yield
+left angle -48 vs -52
+right angle -5 vs 7
+bottom angle 30 vs non
+
+Outlines are fucked
+maybe model retrain will help

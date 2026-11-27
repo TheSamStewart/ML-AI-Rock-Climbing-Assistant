@@ -27,7 +27,7 @@ By the end of this milestone, the coaching AI gets richer climbing data and the 
 | [#35](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/35) | Backend folder layout | `refactor/35-backend-folders` | | ✅ Done (docs in `completed/35-backend-folders/`) |
 | [#36](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/36) | Wall measurement close-out (old slice 16) | `feat/36-wall-measurement-closeout` | | ⏳ Waiting on you |
 | [#37](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/37) | Volume retrain | `feat/37-volume-retrain` | | ⏳ Waiting on you |
-| [#38](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/38) | Volume scan gym trial | `feat/38-volume-scan-trial` | | ⏳ Waiting on you |
+| [#38](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/38) | Volume scan gym trial | `feat/38-volume-scan-trial` | | ▶ In progress (trial 1 no-go 2026-11-27; improving the scan) |
 | [#39](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/39) | Wall measurement docs write-up (old slice 17) | `docs/39-wall-measurement-docs` | #36 | ☐ To do |
 | [#40](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/40) | Fable review (old slice 18) | `chore/40-fable-review` | #39 | ☐ To do |
 | **Phase 1: measure first** |||||
@@ -47,6 +47,8 @@ By the end of this milestone, the coaching AI gets richer climbing data and the 
 | [#51](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/51) | Problem type | `feat/51-problem-type` | #43, #49 | ☐ To do |
 | [#52](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/52) | Crux and rest | `feat/52-crux-and-rest` | #41, #43 | ☐ To do |
 | [#53](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/53) | Visual step-through | `feat/53-visual-step-through` | | ☐ To do |
+| **Bugs** |||||
+| [#55](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/55) | Whole-wall switch: only allow flips that will be applied | `fix/55-whole-wall-switch` | | ▶ In progress (agent, PR pending) |
 
 Status key: ▶ In progress · ☐ To do · ⏳ Waiting on you · ⏸ Blocked · ✅ Done
 
@@ -65,14 +67,14 @@ flowchart LR
 **Why this order:**
 - **The eval (#41) comes before any prompt enrichment.** Each enrichment's done-when includes "the eval score doesn't drop", so the eval has to exist first.
 - **Hold type (#43) builds the classifier.** #44–#47 probably extend the same call instead of adding new ones.
-- **#37 and #38 need your data or a gym trial,** so they run alongside the code work.
+- **#37 needs your data, and #38 your gym trials,** so they run alongside the other code work. #38 also has code slices of its own (4–7c) between trials.
 - **The Fable review (#40) includes the coaching prompt.** If you'd rather its prompt changes were scored, move it after #41.
 - #42 (feedback) and #53 (visual) don't depend on anything, so start them whenever suits.
 
 ## Needs from you
 1. **#36:** check the bolt-pattern Settings screen on a phone, and take slab photos. Record the wall angle, a few tape distances and the phone tilt for each.
 2. **#37:** correct both label sets in Roboflow (steps 3 and 6), then train on Colab (step 9).
-3. **#38:** the volume scan gym trial, with tape-measured face angles.
+3. **#38:** the go thresholds for face angles, then gym trial 2 once the scan is improved (trial 1, 2026-11-27, was a no-go).
 4. **#41 (when it starts):** about 10 field captures with beta you wrote or approved, and sign-off on the rubric.
 
 ## Decisions (across issues)

@@ -11,6 +11,7 @@ fakewall's (fakewall.Vol, fakewall.solid). Each rendered image takes ~15 s.
 """
 import io
 import sys
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -157,7 +158,10 @@ def render(sc: Synth, position: np.ndarray, target: np.ndarray, textures: dict, 
         image[r0:r0 + len(rows)] = col.reshape(len(rows), WIDTH, 3)
         vmask[r0:r0 + len(rows)] = (hit >= 0).reshape(len(rows), WIDTH)
     image = cv2.GaussianBlur(image, (0, 0), 0.6)
-    image += np.random.default_rng(abs(hash((sc.name, tuple(position)))) % 2**32).normal(0, 2.0, image.shape).astype(np.float32)
+    #crc32, not hash(): Python salts str hashes per process, which made the
+    #noise (and so test_synthetic_depth) differ from run to run.
+    seed = zlib.crc32(repr((sc.name, tuple(np.round(np.asarray(position, float), 3)))).encode())
+    image += np.random.default_rng(seed).normal(0, 2.0, image.shape).astype(np.float32)
     return np.clip(image, 0, 255).astype(np.uint8), vmask, R
 
 
@@ -208,14 +212,46 @@ def _as_photo(img_bgr: np.ndarray, quality: int = 92) -> Image.Image:
     return Image.open(io.BytesIO(buf.tobytes())).convert("RGB")
 
 
-def sweep_case(sc: Synth, n_frames: int = 8, span_cm: float = 60.0) -> dict:
+PATHS = ("step", "arc", "height")
+
+
+def burst_positions(base: np.ndarray, target: np.ndarray, n_frames: int, span_cm: float,
+                    path: str = "step", arc_deg: float = 45.0, drop_cm: float = 40.0) -> list[np.ndarray]:
+    """Camera positions for the burst (every frame looks at the volume):
+      step    a straight sideways step of `span_cm` (to the right; negative = left);
+      arc     walking round the volume at the photo's distance, ending `arc_deg`
+              to the side (positive = to the right), the phone turned to keep
+              the volume centred - what trial 1's users did;
+      height  the sideways step while lowering the phone by `drop_cm`."""
+    if path not in PATHS:
+        raise ValueError(f"path must be one of {PATHS}")
+    steps = np.linspace(1.0 / n_frames, 1.0, n_frames)
+    if path == "arc":
+        off = base - target
+        out = []
+        for s in steps:
+            a = np.radians(arc_deg * s)
+            # rotate the horizontal offset about the vertical axis through the target;
+            # positive a moves the camera to the right as seen from the wall's front
+            x = off[0] * np.cos(a) + off[2] * np.sin(a)
+            z = -off[0] * np.sin(a) + off[2] * np.cos(a)
+            out.append(target + np.array([x, off[1], z]))
+        return out
+    drop = drop_cm if path == "height" else 0.0
+    return [base + np.array([span_cm * s, -drop * s, 0.0]) for s in steps]
+
+
+def sweep_case(sc: Synth, n_frames: int = 8, span_cm: float = 60.0, path: str = "step",
+               arc_deg: float = 45.0, drop_cm: float = 40.0) -> dict:
     """A volume-scan test case in memory: the front photo plus `n_frames` burst
-    frames along one sideways step of `span_cm` (to the right; negative = left),
-    every frame turned to look at the volume.
+    frames along `path` (see burst_positions), every frame turned to look at
+    the volume.
 
     Returns photo (PIL), frames (PIL list), gravity (the phone reading at the
     photo), volume_polygon (normalised, on the photo), detections (one VOLUME),
-    truth_faces (visible from the photo) and depth_cm."""
+    truth_faces (visible from the photo), depth_cm, wall_deg, and the true
+    camera moves: frame_baseline_cm (distance from the photo's camera) and
+    frame_turn_deg (rotation from the photo's camera), one per frame."""
     setup = _setup(sc)
     target, base = setup["target"], setup["base_pos"]
     img, vmask, R = render(sc, base, target, setup["textures"], setup["faces"])
@@ -224,14 +260,16 @@ def sweep_case(sc: Synth, n_frames: int = 8, span_cm: float = 60.0) -> dict:
     polygon = [{"x": float(x) / WIDTH, "y": float(y) / HEIGHT} for x, y in c[:: max(1, len(c) // 200)]]
     g_cam = R @ np.array([0.0, -1.0, 0.0])
     gravity = [float(g_cam[0]), float(-g_cam[1]), float(-g_cam[2])]  # iOS device-frame convention
-    frames = []
-    for dx in np.linspace(span_cm / n_frames, span_cm, n_frames):
-        f_img, _, _ = render(sc, base + np.array([dx, 0.0, 0.0]), target, setup["textures"], setup["faces"])
+    frames, baselines, turns = [], [], []
+    for pos in burst_positions(base, target, n_frames, span_cm, path, arc_deg, drop_cm):
+        f_img, _, Rf = render(sc, pos, target, setup["textures"], setup["faces"])
         frames.append(_as_photo(f_img))
+        baselines.append(float(np.linalg.norm(pos - base)))
+        turns.append(float(np.degrees(np.arccos(np.clip((np.trace(Rf @ R.T) - 1) / 2, -1.0, 1.0)))))
     return {"photo": _as_photo(img), "frames": frames, "gravity": gravity, "volume_polygon": polygon,
             "detections": [{"id": 0, "class_name": "VOLUME", "confidence": 1.0, "polygon": polygon}],
             "truth_faces": _truth_faces(setup, base), "depth_cm": sc.vol.height_cm,
-            "wall_deg": sc.wall_deg}
+            "wall_deg": sc.wall_deg, "frame_baseline_cm": baselines, "frame_turn_deg": turns}
 
 
 def _area(corners: np.ndarray) -> float:
