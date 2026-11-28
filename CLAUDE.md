@@ -36,6 +36,7 @@ From `mobile/ML-Rock-Climbing-App/`:
 
 ## Product rules
 - Never remove the wall-angle degree readout in the app. If a change would, remind the human.
+- `docs/hold_types.md` is the hold identification table. Any change to hold classification (types, names, identification rules) updates it in the same change.
 - Until the current issue is complete, don't edit `docs/architecture.md`, `docs/testing.md`, `docs/decisions.md` or `mobile/ML-Rock-Climbing-App/assets/known_measurements/notes/measurements.md`. Spec edits and per-slice handover entries are fine. Keep notes of what they'll need in the issue's handover, and update them in the issue's last slice (`/handover` does this).
 - Remind the human to commit (`/checkpoint`) at the end of each slice, and whenever uncommitted work spans more than one slice.
 

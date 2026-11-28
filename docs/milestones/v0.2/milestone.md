@@ -34,7 +34,7 @@ By the end of this milestone, the coaching AI gets richer climbing data and the 
 | [#41](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/41) | Coaching-quality eval | `feat/41-coaching-eval` | | ☐ To do |
 | [#42](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/42) | Feedback button per step | `feat/42-step-feedback` | | ☐ To do |
 | **Phase 2: hold data** |||||
-| [#43](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/43) | Hold classification | `feat/43-hold-type` | #41 | ☐ To do |
+| [#43](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/43) | Hold classification | `feat/43-hold-type` | #41 | ▶ In progress (started 2026-11-28 before #41; accuracy measured within the issue) |
 | [#44](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/44) | Hold orientation | `feat/44-hold-orientation` | #43 | ☐ To do |
 | [#45](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/45) | Positive / incut | `feat/45-hold-incut` | #43 | ☐ To do |
 | [#46](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/46) | Hold size and shape | `feat/46-hold-size-shape` | #43 | ☐ To do |
@@ -43,6 +43,7 @@ By the end of this milestone, the coaching AI gets richer climbing data and the 
 | **Phase 3: volumes** |||||
 | [#49](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/49) | Holds on volumes (old slices 14, 15 part 1) | `feat/49-holds-on-volumes` | #37, #41 | ⏸ Blocked |
 | [#50](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/50) | Volume face angles | `feat/50-volume-face-angles` | #38 | ⏸ Blocked |
+| [#57](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/57) | Macros: separate from volumes, face angles and directions for the coaching prompt | `feat/57-macros` | #43 | ☐ To do |
 | **Phase 4: derived data and output** |||||
 | [#51](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/51) | Problem type | `feat/51-problem-type` | #43, #49 | ☐ To do |
 | [#52](https://github.com/TheSamStewart/ML-AI-Rock-Climbing-Assistant/issues/52) | Crux and rest | `feat/52-crux-and-rest` | #41, #43 | ☐ To do |
@@ -58,6 +59,7 @@ flowchart LR
   i37["#37 retrain"] --> i49["#49 holds on volumes"]
   i41 --> i49
   i38["#38 scan trial"] --> i50["#50 face angles"]
+  i43 --> i57["#57 macros"]
   i43 & i49 --> i51["#51 problem type"]
   i41 & i43 --> i52["#52 crux and rest"]
 ```
